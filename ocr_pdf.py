@@ -84,7 +84,7 @@ def tesseract(png_folder_path, output_folder_path=None, func=call):
             png_path = os.path.join(png_folder_path, i)
             ppm_filename = "%s.ppm" % png_path
             ppm_filename = ppm_filename.replace(".png","")
-            hocr_filename = os.path.join(output_folder_path, "%s.hocr" % i)
+            hocr_filename = os.path.join(output_folder_path, "%s" % i)
             cmd = "./cde-package/cde-exec 'convert' -density 750 '%s' '%s'" % (png_path, ppm_filename)
             func(cmd)
             #todo: pdf->annotated pdf option + propagation
@@ -106,7 +106,7 @@ def cuneiform(bmp_folder_path, output_folder_path=None, func=call):
     for i in os.listdir(bmp_folder_path):
         if i.endswith('.bmp'):
             cmd = "CF_DATADIR=/usr/local/share/cuneiform ./cde-package/cde-exec cuneiform -f hocr -o '%s.html' '%s'"\
-                % (os.path.join(output_folder_path, i), os.path.join(bmp_folder_path, i.replace(".bmp","")))
+                % (os.path.join(output_folder_path, i).replace(".bmp",""), os.path.join(bmp_folder_path, i))
             func(cmd)
     return 0
 
