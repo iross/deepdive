@@ -10,6 +10,7 @@
     =====
 
     To run the script from the command line::
+
         python ocr_pdf.py --tesseract --no-cuneiform --pdf
 
     This example would run the Tesseract OCR program, outputting an annotated
