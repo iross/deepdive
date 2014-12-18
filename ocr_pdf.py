@@ -2,14 +2,29 @@
 # -*- coding: utf-8 -*-
 """
     ocr_pdf.py
-    ~~~~~~~~~~
-    A brief description goes here.
+    **********
+
+    Script to run the Optical Character Recognition (OCR) process on a specified input
 
     Usage
-    -----
+    =====
+    To run the script from the command line::
+        python ocr_pdf.py --tesseract --no-cuneiform --pdf
+
+    This example would run the Tesseract OCR program, outputting an annotated
+    pdf.
+
+    Returns
+    =======
+    By default, the output is an html (hOCR) file for each page of the input document.
 
     Arguments
-    ---------
+    =========
+    :filename: File to process (required)
+    :--cuneiform: Run cuneiform OCR (--no-cuneiform is default)
+    :--tesseract: Run tesseract OCR (--no-tesseract is default)
+    :--pdf: Return an annotated PDF (or PDFs) after using the OCR (--no-pdf is default)
+    :--k2pdf: Run the Kindle 2 pdf optimizer as intermediate step (--no-k2pdf is default)
 """
 import subprocess
 import os
@@ -18,13 +33,14 @@ import argparse
 
 import pdb
 def call(cmd, check=True, stdout=None, stderr=None):
-    """TODO: Docstring for call.
+    """
+    Spawn subprocess for a command, optionally checking its return.
 
-    :cmd: TODO
-    :check: check return code or not
-    :stdout: TODO
-    :stderr: TODO
-    :returns: TODO
+    :cmd: Command to run
+    :check: check return code or not (default: True)
+    :stdout: Path for standard out
+    :stderr: Path for standard err
+    :returns: If check is True, returns 0 if success or a CalledProcessError. If check is False, returns 0 if success, otherwise 1"
 
     """
     if check:
@@ -34,11 +50,10 @@ def call(cmd, check=True, stdout=None, stderr=None):
 
 
 def unzip(zip_file, func=call):
-    """TODO: Docstring for unzip.
+    """
+    Unzip the specified file
 
-    :zip_file: TODO
-    :func: TODO
-    :returns: TODO
+    :zip_file: Name of zip file to unpack.
 
     """
     cmd = "unzip -o '%s'" % zip_file
@@ -50,16 +65,16 @@ def unzip(zip_file, func=call):
 
 
 def k2pdfopt(pdf_file, output_file, func=call):
-    """convert multi-column PDF into single column
+    """
+    Convert multi-column PDF into single column
 
     K2pdfopt (Kindle 2 PDF Optimizer) is a stand-alone program which optimizes the format of PDF (or DJVU) files for viewing on small (e.g. 6-inch) mobile reader and smartphone screens such as the Kindle's.
     The output from k2pdfopt is a new (optimized) PDF file.
     http://www.willus.com/k2pdfopt/
 
-    :pdf_file: TODO
-    :output_file: this is a required parameter, because k2pdfopt always return 0
-    :func: TODO
-    :returns: 0: WARNING, k2pdfopt will always return 0, judge its succeed by looking at the output_file
+    :pdf_file: Path to PDF file to optimize
+    :output_file: Output file.
+    :returns: 0. WARNING, k2pdfopt will always return 0; judge its success by looking at the output_file
 
     """
     try:
@@ -72,12 +87,12 @@ def k2pdfopt(pdf_file, output_file, func=call):
 
 
 def pdf_to_png(pdf_file, tmp_folder=None, func=call):
-    """Converts pdf_file to png vs gs command. Saves to [tmp_folder]/page-%%d.png (or ./page-%%d.png if no tmp_folder is specified)
+    """
+    Converts pdf_file to png via gs command. Saves to [tmp_folder]/page-%%d.png (or ./page-%%d.png if no tmp_folder is specified)
 
-    :pdf_file: TODO
-    :tmp_folder: TODO
-    :func: TODO
-    :returns: TODO
+    :pdf_file: PDF file to convert.
+    :tmp_folder: Path to temporary folder to use (default: None)
+    :returns: 0 if successful.
 
     """
     if tmp_folder:
@@ -89,12 +104,12 @@ def pdf_to_png(pdf_file, tmp_folder=None, func=call):
 
 
 def pdf_to_bmp(pdf_file, tmp_folder=None, func=call):
-    """TODO: Docstring for pdf_to_bmp.
+    """
+    Converts pdf_file to bitmap via gs command. Saves to [tmp_folder]/page-%%d.bmp (or ./page-%%d.bmp if no tmp_folder is specified)
 
-    :pdf_file: TODO
-    :tmp_folder: TODO
-    :func: TODO
-    :returns: TODO
+    :pdf_file: PDF file to convert.
+    :tmp_folder: Path to temporary folder to use (default: None)
+    :returns: 0 if successful.
 
     """
     if tmp_folder:
@@ -106,11 +121,11 @@ def pdf_to_bmp(pdf_file, tmp_folder=None, func=call):
 
 
 def tesseract(png_folder_path, output_folder_path=None, func=call):
-    """TODO: Docstring for tesseract.
+    """
+    Run Tesseract OCR over the PNG files in the specified path.
 
-    :png_folder_path: TODO
-    :output_folder_path: TODO
-    :func: TODO
+    :png_folder_path: Path of the converted PNG files
+    :output_folder_path: Target directory for hOCR output (defaults to png_folder_path)
     :returns: 0, always return 0
 
     """
@@ -125,7 +140,6 @@ def tesseract(png_folder_path, output_folder_path=None, func=call):
             hocr_filename = os.path.join(output_folder_path, "%s" % "tesseract_"+i)
             cmd = "./cde-package/cde-exec 'convert' -density 750 '%s' '%s'" % (png_path, ppm_filename)
             func(cmd)
-            #todo: pdf->annotated pdf option + propagation
             cmd = "./cde-package/cde-exec 'tesseract' '%s' '%s' hocr" % (ppm_filename, hocr_filename)
             func(cmd)
             cmd = "rm -f '%s'" % (ppm_filename)
@@ -134,11 +148,11 @@ def tesseract(png_folder_path, output_folder_path=None, func=call):
 
 
 def cuneiform(bmp_folder_path, output_folder_path=None, func=call):
-    """TODO: Docstring for cuneiform.
+    """
+    Run Cuneiform OCR over the BMP files in the specified path.
 
-    :bmp_folder_path: TODO
-    :output_folder_path: TODO
-    :func: TODO
+    :bmp_folder_path: Path of the converted BMP files
+    :output_folder_path: Target directory for hOCR output (defaults to bmp_folder_path)
     :returns: 0, always return
 
     """
@@ -153,31 +167,30 @@ def cuneiform(bmp_folder_path, output_folder_path=None, func=call):
     return 0
 
 def hocr2pdf(input_pattern, prefix, suffix, image_dir="tmp/", func=call):
-    """TODO: Docstring for hocr2pdf.
+    """
+    Use hocr2pdf to embed hOCR output back into source image, converting it to a PDF
 
-    :input_pattern: TODO
-    :prefix: TODO
-    :suffix: TODO
-    :image_dir: TODO
-    :func: TODO
-    :returns: TODO
+    :input_pattern: Pattern of image files (.bmp or .png)
+    :prefix: Prefix for saved output.
+    :suffix: Suffix for hOCR input.
+    :image_dir: Directory where temporary image files are stored (default: tmp/"
+    :returns: 0 if successful
 
     """
     for i in os.listdir(image_dir):
         if i.endswith(input_pattern):
             html_doc = prefix + "_" + i + suffix
-            pdb.set_trace()
             cmd = "./cde-package/cde-exec hocr2pdf -i %s -o %s < %s" % \
                     (image_dir+i, html_doc.replace(suffix, ".pdf"), html_doc)
     return func(cmd)
 
 def tiff_to_html(tiff_path, output_folder_path=None, func=call):
-    """TODO: Docstring for tiff_to_html.
+    """
+    Run Tesseract OCR on a TIF file.
 
-    :tiff_path: TODO
-    :ouput_folder_path: TODO
-    :func: TODO
-    :returns: TODO
+    :tiff_path: Path where tiff is stored
+    :output_folder_path: Target directory for hOCR output (defaults to .)
+    :returns: 0 if successful
 
     """
     output_folder_path = os.path.abspath(output_folder_path) if output_folder_path else os.path.abspath('.')
@@ -188,18 +201,18 @@ def tiff_to_html(tiff_path, output_folder_path=None, func=call):
 
 class OcrPdf(object):
 
-    """Docstring for OcrPdf. """
+    """Helper class to aid the PDF->OCR process"""
 
     def __init__(self, pdf_path, stdout_filepath, stderr_filepath, output_folder_path=None, cuneiform=True, tesseract=True, k2pdf = False, pdf=False):
         """
-        :pdf_path: TODO
-        :stdout_filepath: TODO
-        :stderr_filepath: TODO
-        :output_folder_path: TODO
-        :cuneiform: TODO
-        :tesseract: TODO
-        :k2pdf: TODO
-        :pdf: TODO
+        :pdf_path: Path to PDF file to convert
+        :stdout_filepath: Path for standard out
+        :stderr_filepath: Path for standard err
+        :output_folder_path: Path for output
+        :cuneiform: Run Cuneiform toggle
+        :tesseract: Run Tesseract toggle
+        :k2pdf: Run k2pdf toggle
+        :pdf: Output as PDF toggle
 
         """
 
@@ -241,8 +254,8 @@ class OcrPdf(object):
         return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
 
     def do(self):
-        """TODO: Docstring for do.
-        :returns: TODO
+        """
+        Runs the desired commands.
 
         """
         unzip("ianscde.zip", func=self.call)
@@ -266,10 +279,10 @@ class OcrPdf(object):
 
     def tiffs_to_htmls(self, tiff_folder_path):
         """
-        TODO: Docstring for tiffs_to_htmls.
+        Convert TIFFs to hOCR files. Can be used for .tif OR .tiff files
 
-        :tiff_folder_path: TODO
-        :returns: True or the file failed to be converted
+        :tiff_folder_path: Path to directory containing TIFF files.
+        :returns: True or the filepath which failed to be converted
         """
         for i in os.listdir(tiff_folder_path):
             if i.endswith('.tif') or i.endswith('.tiff'):
@@ -283,7 +296,6 @@ def main(args):
     o = OcrPdf(args.file, 'out.txt', 'out.txt', './',args.cuneiform,args.tesseract,args.k2pdf,args.pdf)
     o.do()
 #    o.tiffs_to_htmls(argv[1])
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
