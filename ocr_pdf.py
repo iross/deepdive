@@ -2,9 +2,14 @@
 # -*- coding: utf-8 -*-
 """
     ocr_pdf.py
-    ~~~~~~~~~~~~~~
-
+    ~~~~~~~~~~
     A brief description goes here.
+
+    Usage
+    -----
+
+    Arguments
+    ---------
 """
 import subprocess
 import os
@@ -13,9 +18,14 @@ import argparse
 
 import pdb
 def call(cmd, check=True, stdout=None, stderr=None):
-    """
-    Args:
-        check: check return code or not
+    """TODO: Docstring for call.
+
+    :cmd: TODO
+    :check: check return code or not
+    :stdout: TODO
+    :stderr: TODO
+    :returns: TODO
+
     """
     if check:
         return subprocess.check_call(cmd, stdout=stdout, stderr=stderr, shell=True)
@@ -24,6 +34,13 @@ def call(cmd, check=True, stdout=None, stderr=None):
 
 
 def unzip(zip_file, func=call):
+    """TODO: Docstring for unzip.
+
+    :zip_file: TODO
+    :func: TODO
+    :returns: TODO
+
+    """
     cmd = "unzip -o '%s'" % zip_file
     try:
         return func(cmd)
@@ -39,11 +56,11 @@ def k2pdfopt(pdf_file, output_file, func=call):
     The output from k2pdfopt is a new (optimized) PDF file.
     http://www.willus.com/k2pdfopt/
 
-    Args:
-        output_file: this is a required parameter, because k2pdfopt always return 0
+    :pdf_file: TODO
+    :output_file: this is a required parameter, because k2pdfopt always return 0
+    :func: TODO
+    :returns: 0: WARNING, k2pdfopt will always return 0, judge its succeed by looking at the output_file
 
-    Returns:
-        0: WARNING, k2pdfopt will always return 0, judge its succeed by looking at the output_file
     """
     try:
         os.remove(output_file)
@@ -55,8 +72,13 @@ def k2pdfopt(pdf_file, output_file, func=call):
 
 
 def pdf_to_png(pdf_file, tmp_folder=None, func=call):
-    """
-    Converts pdf_file to png vs gs command. Saves to [tmp_folder]/page-%%d.png (or ./page-%%d.png if no tmp_folder is specified)
+    """Converts pdf_file to png vs gs command. Saves to [tmp_folder]/page-%%d.png (or ./page-%%d.png if no tmp_folder is specified)
+
+    :pdf_file: TODO
+    :tmp_folder: TODO
+    :func: TODO
+    :returns: TODO
+
     """
     if tmp_folder:
         cmd = "./cde-package/cde-exec 'gs' -dBATCH -dNOPAUSE -sDEVICE=png16m -dGraphicsAlphaBits=4 -dTextAlphaBits=4 -r600 -sOutputFile='%s/page-%%04d.png' '%s'"\
@@ -67,6 +89,14 @@ def pdf_to_png(pdf_file, tmp_folder=None, func=call):
 
 
 def pdf_to_bmp(pdf_file, tmp_folder=None, func=call):
+    """TODO: Docstring for pdf_to_bmp.
+
+    :pdf_file: TODO
+    :tmp_folder: TODO
+    :func: TODO
+    :returns: TODO
+
+    """
     if tmp_folder:
         cmd = "./cde-package/cde-exec 'gs' -SDEVICE=bmpmono -r600x600 -sOutputFile='%s/page-%%04d.bmp' -dNOPAUSE -dBATCH -- '%s'"\
                 % (tmp_folder, pdf_file)
@@ -76,9 +106,13 @@ def pdf_to_bmp(pdf_file, tmp_folder=None, func=call):
 
 
 def tesseract(png_folder_path, output_folder_path=None, func=call):
-    """
-    Returns:
-        0, always return 0
+    """TODO: Docstring for tesseract.
+
+    :png_folder_path: TODO
+    :output_folder_path: TODO
+    :func: TODO
+    :returns: 0, always return 0
+
     """
     png_folder_path = os.path.abspath(png_folder_path)
     if not output_folder_path:
@@ -100,9 +134,13 @@ def tesseract(png_folder_path, output_folder_path=None, func=call):
 
 
 def cuneiform(bmp_folder_path, output_folder_path=None, func=call):
-    """
-    Returns:
-        0, always return 0
+    """TODO: Docstring for cuneiform.
+
+    :bmp_folder_path: TODO
+    :output_folder_path: TODO
+    :func: TODO
+    :returns: 0, always return
+
     """
     bmp_folder_path = os.path.abspath(bmp_folder_path)
     if not output_folder_path:
@@ -115,7 +153,16 @@ def cuneiform(bmp_folder_path, output_folder_path=None, func=call):
     return 0
 
 def hocr2pdf(input_pattern, prefix, suffix, image_dir="tmp/", func=call):
-    """docstring for hocr2pdf"""
+    """TODO: Docstring for hocr2pdf.
+
+    :input_pattern: TODO
+    :prefix: TODO
+    :suffix: TODO
+    :image_dir: TODO
+    :func: TODO
+    :returns: TODO
+
+    """
     for i in os.listdir(image_dir):
         if i.endswith(input_pattern):
             html_doc = prefix + "_" + i + suffix
@@ -125,6 +172,14 @@ def hocr2pdf(input_pattern, prefix, suffix, image_dir="tmp/", func=call):
     return func(cmd)
 
 def tiff_to_html(tiff_path, output_folder_path=None, func=call):
+    """TODO: Docstring for tiff_to_html.
+
+    :tiff_path: TODO
+    :ouput_folder_path: TODO
+    :func: TODO
+    :returns: TODO
+
+    """
     output_folder_path = os.path.abspath(output_folder_path) if output_folder_path else os.path.abspath('.')
     hocr_path = os.path.join(output_folder_path, os.path.basename(tiff_path))
     cmd = "./cde-package/cde-exec 'tesseract' '%s' '%s.hocr' hocr" % (tiff_path, hocr_path)
@@ -132,7 +187,22 @@ def tiff_to_html(tiff_path, output_folder_path=None, func=call):
 
 
 class OcrPdf(object):
+
+    """Docstring for OcrPdf. """
+
     def __init__(self, pdf_path, stdout_filepath, stderr_filepath, output_folder_path=None, cuneiform=True, tesseract=True, k2pdf = False, pdf=False):
+        """
+        :pdf_path: TODO
+        :stdout_filepath: TODO
+        :stderr_filepath: TODO
+        :output_folder_path: TODO
+        :cuneiform: TODO
+        :tesseract: TODO
+        :k2pdf: TODO
+        :pdf: TODO
+
+        """
+
         try:
             self.stdout = open(stdout_filepath, 'a')
             self.stderr = open(stderr_filepath, 'a')
@@ -171,7 +241,10 @@ class OcrPdf(object):
         return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
 
     def do(self):
-        # Usage of ocr2 and cuneiform will depend on desired runtime options.
+        """TODO: Docstring for do.
+        :returns: TODO
+
+        """
         unzip("ianscde.zip", func=self.call)
         if self.k2pdf:
             output_file = "k2_pdf_%s" % self.pdf_path
@@ -193,8 +266,10 @@ class OcrPdf(object):
 
     def tiffs_to_htmls(self, tiff_folder_path):
         """
-        Returns:
-            True or the file failed to be converted
+        TODO: Docstring for tiffs_to_htmls.
+
+        :tiff_folder_path: TODO
+        :returns: True or the file failed to be converted
         """
         for i in os.listdir(tiff_folder_path):
             if i.endswith('.tif') or i.endswith('.tiff'):
