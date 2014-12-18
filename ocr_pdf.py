@@ -165,8 +165,7 @@ class OcrPdf(object):
                 raise e
 
     def __del__(self):
-#        shutil.rmtree('tmp', True)
-        print "Rm tmp dir!"
+        shutil.rmtree('tmp', True)
 
     def call(self, cmd, check=True):
         return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
