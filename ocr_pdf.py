@@ -8,6 +8,7 @@
 
     Usage
     =====
+
     To run the script from the command line::
         python ocr_pdf.py --tesseract --no-cuneiform --pdf
 
