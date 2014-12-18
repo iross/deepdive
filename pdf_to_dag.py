@@ -10,9 +10,12 @@ import os
 import pickle
 
 def get_job_directory(input_path, output_path):
-    """
-        Returns:
-            {}, contains original file information
+    """TODO: Docstring for get_job_directory.
+
+    :input_path: TODO
+    :output_path: TODO
+    :returns: TODO
+
     """
     info = {}
     count = 0

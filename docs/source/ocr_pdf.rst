@@ -16,3 +16,11 @@ Requirements
 :ianscde.zip:
 
 
+Members
+=======
+
+.. automodule:: ocr_pdf
+    :members:
+
+.. autoclass:: OcrPdf
+    :members:
