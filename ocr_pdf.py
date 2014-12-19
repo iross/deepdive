@@ -122,12 +122,14 @@ def pdf_to_bmp(pdf_file, tmp_folder=None, func=call):
     return func(cmd)
 
 
-def tesseract(png_folder_path, output_folder_path=None, func=call):
+def tesseract(png_folder_path, output_folder_path=None, extension="hocr", ppm=False, func=call):
     """
     Run Tesseract OCR over the PNG files in the specified path.
 
     :png_folder_path: Path of the converted PNG files
     :output_folder_path: Target directory for hOCR output (defaults to png_folder_path)
+    :extension: Extension/filetype to return (defaults to pdf)
+    :ppm: Convert the input PNG to an intermediary PPM (note: default chain includes this step. Not sure why... IAR - 19.Dec.2014)
     :returns: 0, always return 0
 
     """
@@ -137,14 +139,20 @@ def tesseract(png_folder_path, output_folder_path=None, func=call):
     for i in os.listdir(png_folder_path):
         if i.endswith('.png'):
             png_path = os.path.join(png_folder_path, i)
-            ppm_filename = "%s.ppm" % png_path
-            ppm_filename = ppm_filename.replace(".png","")
             hocr_filename = os.path.join(output_folder_path, "%s" % "tesseract_"+i)
-            cmd = "./cde-package/cde-exec 'convert' -density 750 '%s' '%s'" % (png_path, ppm_filename)
+            if ppm:
+                ppm_filename = "%s.ppm" % png_path
+                ppm_filename = ppm_filename.replace(".png","")
+                cmd = "./cde-package/cde-exec 'convert' -density 900 '%s' '%s'" % (png_path, ppm_filename)
+                func(cmd)
+                hocr_filename = hocr_filename + "_ppm"
+                filename = ppm_filename
+            else:
+                filename = png_path
+            cmd = "./cde-package/cde-exec 'tesseract' '%s' '%s' %s" % (filename, hocr_filename, extension)
             func(cmd)
-            cmd = "./cde-package/cde-exec 'tesseract' '%s' '%s' hocr" % (ppm_filename, hocr_filename)
-            func(cmd)
-            cmd = "rm -f '%s'" % (ppm_filename)
+            if ppm: #these ppms are huge, so delete them as we go.
+                cmd = "rm -f '%s'" % (filename)
             func(cmd)
     return 0
 
@@ -205,7 +213,7 @@ class OcrPdf(object):
 
     """Helper class to aid the PDF->OCR process"""
 
-    def __init__(self, pdf_path, stdout_filepath, stderr_filepath, output_folder_path=None, cuneiform=True, tesseract=True, k2pdf = False, pdf=False):
+    def __init__(self, pdf_path, stdout_filepath, stderr_filepath, output_folder_path=None, cuneiform=True, tesseract=True, k2pdf = False, pdf=False, ppm=False):
         """
         :pdf_path: Path to PDF file to convert
         :stdout_filepath: Path for standard out
@@ -215,6 +223,7 @@ class OcrPdf(object):
         :tesseract: Run Tesseract toggle
         :k2pdf: Run k2pdf toggle
         :pdf: Output as PDF toggle
+        :ppm: Create intermediate PPM in Tesseract chain
 
         """
 
@@ -224,6 +233,7 @@ class OcrPdf(object):
             self.pdf_path = pdf_path
             self.k2pdf = k2pdf
             self.pdf = pdf
+            self.ppm = ppm
             self.cuneiform = cuneiform
             self.tesseract = tesseract
             self.output_folder_path = output_folder_path
@@ -251,6 +261,7 @@ class OcrPdf(object):
 
     def __del__(self):
         shutil.rmtree('tmp', True)
+#        print "DELETED"
 
     def call(self, cmd, check=True):
         return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
@@ -269,7 +280,7 @@ class OcrPdf(object):
         # todo: is there a reason cuneiform is using bmp while tesseract uses png?
         if self.tesseract:
             print pdf_to_png(output_file, tmp_folder='tmp', func=self.call)
-            print tesseract('tmp', self.output_folder_path, self.call)
+            print tesseract('tmp', self.output_folder_path, "hocr", self.ppm, self.call)
         if self.cuneiform:
             print pdf_to_bmp(output_file, tmp_folder='tmp', func=self.call)
             print cuneiform('tmp', self.output_folder_path, self.call)
@@ -277,7 +288,14 @@ class OcrPdf(object):
             if self.cuneiform:
                 print hocr2pdf(".bmp", "cuneiform", ".html", "tmp/", self.call)
             if self.tesseract:
-                print hocr2pdf(".png", "tesseract", ".hocr", "tmp/", self.call)
+                if self.ppm:
+                    suffix = "_ppm.hocr"
+                else:
+                    suffix = ".hocr"
+                # Better results seen with built-in Tesseract functionality.
+                # To use the hocr2pdf process, uncomment below.
+#                print hocr2pdf(".png", "tesseract", suffix, "tmp/", self.call)
+                print tesseract('tmp', self.output_folder_path, "pdf", self.ppm, self.call)
 
     def tiffs_to_htmls(self, tiff_folder_path):
         """
@@ -295,7 +313,7 @@ class OcrPdf(object):
 
 
 def main(args):
-    o = OcrPdf(args.file, 'out.txt', 'out.txt', './',args.cuneiform,args.tesseract,args.k2pdf,args.pdf)
+    o = OcrPdf(args.file, 'out.txt', 'out.txt', './',args.cuneiform,args.tesseract,args.k2pdf,args.pdf,args.ppm)
     o.do()
 #    o.tiffs_to_htmls(argv[1])
 
@@ -308,6 +326,8 @@ if __name__ == '__main__':
     parser.add_argument('--no-tesseract', dest='tesseract', action='store_false', help='Run Tesseract OCR?')
     parser.add_argument('--pdf', dest='pdf', action='store_true', help='Return annotated PDF?')
     parser.add_argument('--no-pdf', dest='pdf', action='store_false', help='Return annoted PDF?')
+    parser.add_argument('--ppm', dest='ppm', action='store_true', help='Create intermediate PPM file in Tesseract chain?')
+    parser.add_argument('--no-ppm', dest='ppm', action='store_false', help='Create intermediate PPM file in Tesseract chain?')
     parser.add_argument('--k2pdf', type=bool, required=False, default=False, help='Run k2pdf step?')
 
     args = parser.parse_args()
