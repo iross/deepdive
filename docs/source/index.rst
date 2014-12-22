@@ -12,7 +12,7 @@ Contents:
    :maxdepth: 2
 
    ocr_pdf
-   pdf_dag
+   pdf_to_dag
 
 
 Indices and tables
