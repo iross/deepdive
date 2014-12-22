@@ -4,6 +4,31 @@ deepdive
 OCR
 ---
 
+### Getting started
+
+The overall process is:
+    - Get relevant packages
+    - Convert PDF/TIF inputs into condor-read job directories.
+    - Submit jobs
+
+The pieces needed are:
+    - ocr_pdf.py
+    - pdf_to_dag.py
+    - iancsde.zip
+    - ChtcRun package
+
+Hit-the-ground-running recipe:
+    git clone https://github.com/iross/deepdive
+    cd deepdive
+    git checkout ians_cde
+    wget ianscde.zip
+    ChtcRun stuff
+
+
+### More documentation
+OCR + Job creation scripts: [ReadTheDocs.org] (https://readthedocs.org/projects/deepdive/)
+ChtcRun: [Submitting Jobs Using the ChtcRun Package] (http://chtc.cs.wisc.edu/DAGenv.shtml)
+
 ### Dealing with different file types
 Currently, we made these basic assumptions when dealing with different files
 
@@ -13,6 +38,7 @@ Currently, we made these basic assumptions when dealing with different files
 Reference
 ---------
 * [Tesseract] (http://tesseract-ocr.googlecode.com/svn/trunk/doc/tesseract.1.html)
+* [Cuneiform] (https://launchpad.net/cuneiform-linux)
 
 http://tfischernet.wordpress.com/2008/11/26/searchable-pdfs-with-linux/
 
