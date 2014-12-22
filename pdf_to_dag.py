@@ -4,17 +4,40 @@
     pdf_to_dag.py
     ~~~~~~~~~~~~~~
 
-    list files within directories
+    Script to convert a directory (or directory tree) containing
+    pdf and tif files into a condor-ready input directory.
+
+    Usage
+    =====
+
+    To run the script from the command line::
+
+        python pdf_to_dag.py input_dir output_dir
+
+    Returns
+    =======
+    Creates the specified directory from the contents of the input_dir,
+    with pdf/tif inputs sorted into job subdirectories.
+
+    Within the output_dir directory, there is a file_mapping.pickle which holds
+    the mapping between job directory and input filepath.
+
+    Arguments
+    =========
+    :input_dir: Directory to crawl for input pdf/tif files
+    :output_dir: Output directory.
 """
 import os
 import pickle
 
 def get_job_directory(input_path, output_path):
-    """TODO: Docstring for get_job_directory.
+    """
+    Crawls through input_directory, and creates a output_path/jobxxxxx/
+    directory with a renamed copy of any pdf/tif found.
 
-    :input_path: TODO
-    :output_path: TODO
-    :returns: TODO
+    :input_path: Input directory to search.
+    :output_path: Output dir
+    :returns: info, dictionary containing the mapping between input file and output path
 
     """
     info = {}
