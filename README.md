@@ -7,22 +7,24 @@ OCR
 ### Getting started
 
 The overall process is:
-    - Get relevant packages
-    - Convert PDF/TIF inputs into condor-read job directories.
-    - Submit jobs
+- Get relevant packages
+- Convert PDF/TIF inputs into condor-read job directories.
+- Submit jobs
 
 The pieces needed are:
-    - ocr_pdf.py
-    - pdf_to_dag.py
-    - iancsde.zip
-    - ChtcRun package
+- ocr_pdf.py
+- pdf_to_dag.py
+- iancsde.zip
+- ChtcRun package
 
 Hit-the-ground-running recipe:
-    git clone https://github.com/iross/deepdive
-    cd deepdive
-    git checkout ians_cde
-    wget ianscde.zip
-    ChtcRun stuff
+```
+git clone https://github.com/iross/deepdive
+cd deepdive
+git checkout ians_cde
+wget ianscde.zip
+ChtcRun stuff
+```
 
 
 ### More documentation
