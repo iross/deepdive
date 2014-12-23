@@ -40,10 +40,9 @@ Currently, we made these basic assumptions when dealing with different files
 
 Reference
 ---------
-* [Tesseract] (http://tesseract-ocr.googlecode.com/svn/trunk/doc/tesseract.1.html)
-* [Cuneiform] (https://launchpad.net/cuneiform-linux)
-
-http://tfischernet.wordpress.com/2008/11/26/searchable-pdfs-with-linux/
+- [Tesseract] (http://tesseract-ocr.googlecode.com/svn/trunk/doc/tesseract.1.html)
+- [Cuneiform] (https://launchpad.net/cuneiform-linux)
+- http://tfischernet.wordpress.com/2008/11/26/searchable-pdfs-with-linux/
 
 Known Issues
 ------------
