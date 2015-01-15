@@ -20,6 +20,9 @@ do
     fi
 done
 
+#carry the filepath mapping pickle along for easier bookkeeping
+cp $journal_clean/filepath_mapping.pickle $journal_new/
+
 # assume ChtcRun/NLPshared exists and holds all common shared junk
 cp -r fontshared $journal_new
 mv $journal_new/fontshared $journal_new/shared
