@@ -11,7 +11,7 @@
 
     To run the script from the command line::
 
-        python ocr_pdf.py --tesseract --no-cuneiform --pdf
+        python ocr_pdf.py --tesseract --no-cuneiform --pdf input.pdf
 
     This example would run the Tesseract OCR program, outputting an annotated
     pdf.
@@ -137,7 +137,7 @@ def tesseract(png_folder_path, output_folder_path=None, extension="hocr", ppm=Fa
     if not output_folder_path:
         output_folder_path = png_folder_path
     for i in os.listdir(png_folder_path):
-        if i.endswith('.png'):
+        if i.endswith('.png') or i.endswith('.tif') or i.endswith('.tiff'):
             png_path = os.path.join(png_folder_path, i)
             hocr_filename = os.path.join(output_folder_path, "%s" % "tesseract_"+i)
             if ppm:
@@ -170,7 +170,7 @@ def cuneiform(bmp_folder_path, output_folder_path=None, func=call):
     if not output_folder_path:
         output_folder_path = bmp_folder_path
     for i in os.listdir(bmp_folder_path):
-        if i.endswith('.bmp'):
+        if i.endswith('.bmp') or i.endswith('.tif') or i.endswith('.tiff'):
             cmd = "CF_DATADIR=/usr/local/share/cuneiform ./cde-package/cde-exec cuneiform -f hocr -o '%s.html' '%s'"\
                 % (os.path.join(output_folder_path, "cuneiform_" + i), os.path.join(bmp_folder_path, i))
             func(cmd)
@@ -192,7 +192,10 @@ def hocr2pdf(input_pattern, prefix, suffix, image_dir="tmp/", func=call):
             html_doc = prefix + "_" + i + suffix
             cmd = "./cde-package/cde-exec hocr2pdf -i %s -o %s < %s" % \
                     (image_dir+i, html_doc.replace(suffix, ".pdf"), html_doc)
-    return func(cmd)
+            func(cmd)
+        else:
+            continue
+    return
 
 def tiff_to_html(tiff_path, output_folder_path=None, func=call):
     """
@@ -261,7 +264,6 @@ class OcrPdf(object):
 
     def __del__(self):
         shutil.rmtree('tmp', True)
-#        print "DELETED"
 
     def call(self, cmd, check=True):
         return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
@@ -277,45 +279,30 @@ class OcrPdf(object):
             print k2pdfopt(self.pdf_path, output_file, func=self.call)
         else:
             output_file = self.pdf_path
-        # todo: is there a reason cuneiform is using bmp while tesseract uses png?
         if self.tesseract:
-            print pdf_to_png(output_file, tmp_folder='tmp', func=self.call)
-            print tesseract('tmp', self.output_folder_path, "hocr", self.ppm, self.call)
+            if output_file.endswith(".tif") or output_file.endswith(".tiff"):
+                if self.pdf:
+                    print tesseract('./', self.output_folder_path, "pdf", self.ppm, self.call)
+                print tesseract('./', self.output_folder_path, "hocr", self.ppm, self.call)
+            else: # PDF input
+                print pdf_to_png(output_file, tmp_folder='tmp', func=self.call)
+                if self.pdf:
+                    print tesseract('tmp', self.output_folder_path, "pdf", self.ppm, self.call)
+                print tesseract('tmp', self.output_folder_path, "hocr", self.ppm, self.call)
         if self.cuneiform:
-            print pdf_to_bmp(output_file, tmp_folder='tmp', func=self.call)
-            print cuneiform('tmp', self.output_folder_path, self.call)
-        if self.pdf:
-            if self.cuneiform:
-                print hocr2pdf(".bmp", "cuneiform", ".html", "tmp/", self.call)
-            if self.tesseract:
-                if self.ppm:
-                    suffix = "_ppm.hocr"
-                else:
-                    suffix = ".hocr"
-                # Better results seen with built-in Tesseract functionality.
-                # To use the hocr2pdf process, uncomment below.
-#                print hocr2pdf(".png", "tesseract", suffix, "tmp/", self.call)
-                print tesseract('tmp', self.output_folder_path, "pdf", self.ppm, self.call)
-
-    def tiffs_to_htmls(self, tiff_folder_path):
-        """
-        Convert TIFFs to hOCR files. Can be used for .tif OR .tiff files
-
-        :tiff_folder_path: Path to directory containing TIFF files.
-        :returns: True or the filepath which failed to be converted
-        """
-        for i in os.listdir(tiff_folder_path):
-            if i.endswith('.tif') or i.endswith('.tiff'):
-                tiff_path = os.path.join(tiff_folder_path, i)
-                if tiff_to_html(tiff_path, self.output_folder_path, self.call):
-                    return tiff_path
-        return True
-
+            if output_file.endswith(".tif") or output_file.endswith(".tiff"):
+                print cuneiform('./', self.output_folder_path, self.call)
+                if self.pdf:
+                    print hocr2pdf(".tif", "cuneiform", ".html", "./", self.call)
+            else: # PDF Input
+                print pdf_to_bmp(output_file, tmp_folder='tmp', func=self.call)
+                print cuneiform('tmp', self.output_folder_path, self.call)
+                if self.pdf:
+                    print hocr2pdf(".bmp", "cuneiform", ".html", "tmp/", self.call)
 
 def main(args):
     o = OcrPdf(args.file, 'out.txt', 'out.txt', './',args.cuneiform,args.tesseract,args.k2pdf,args.pdf,args.ppm)
     o.do()
-#    o.tiffs_to_htmls(argv[1])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
