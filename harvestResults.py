@@ -168,6 +168,10 @@ if __name__ == '__main__':
     output_dir = args.output_dir
     submit_dir = args.submit_dir
 
+    successTotalCPUTime = 0
+    totalSuccesses = 0
+    failTotalCPUTime = 0
+    totalFailures = 0
 
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
@@ -230,6 +234,13 @@ if __name__ == '__main__':
         match["%s_processing" % args.type] = { tag: temp }
 
 
+        if tempReport["success"]:
+            totalSuccesses += 1
+            successTotalCPUTime += tempReport["runTime"]
+        else:
+            totalFailures += 1
+            failTotalCPUTime += tempReport["runTime"]
+
         # this will re-add the job reports if they're already in the db, since we're just pushing to a list
         # can probably make an index on "path" and check against it.
         if args.dryrun:
@@ -245,6 +256,10 @@ if __name__ == '__main__':
                 processings.update( { "_id": tag }, { "$push": { "jobs" : tempReport } } )
             articles.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
         # todo: clean up all other stuff in the output directories?
+
+    print "Total CPU time of success: %s (%i total)" % (str(successTotalCPUTime), totalSuccesses)
+    print "Total CPU time of failures: %s (%i total)"% (str(failTotalCPUTime), totalFailures)
+    print "Failures were %.2f %% of total " % (100 * failTotalCPUTime / float(failTotalCPUTime + successTotalCPUTime) )
 
     """
     # temp make plot of runTimes
