@@ -184,7 +184,7 @@ if __name__ == '__main__':
         # match against the articles collection in the DB
         match = getMatch(jobid, articles)
         if match is None:
-            print "No match for the article found!"
+            print "No match for the article in %s!" % jobid
             continue
         try:
             if match["%s_processing" % args.type][tag]["harvested"]:
