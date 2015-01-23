@@ -253,7 +253,7 @@ if __name__ == '__main__':
         else:
             if not args.update: # don't update the processings database.
                 # todo: make it possible to update the databases without duplicating the "jobs" array
-                processings.update( { "_id": tag }, { "$push": { "jobs" : tempReport } } )
+                processings.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
             articles.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
         # todo: clean up all other stuff in the output directories?
 
