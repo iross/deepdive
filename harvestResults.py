@@ -135,6 +135,74 @@ def readLog(jobid, basedir):
         print "Couldn't find file at %s/%s/process.log" % (basedir, jobpath)
         return None
 
+def processJob(jobpath):
+    jobid = jobpath.split("/")[-2]
+
+    # match against the articles collection in the DB
+    match = getMatch(jobid, articles)
+    if match is None:
+        print "No match for the article found!"
+        return 1
+    try:
+        if match["%s_processing" % args.type][tag]["harvested"]:
+            if DEBUG:
+                print "The information for this job has already been added to the DB!"
+                print "If you want to update it, too bad! Ian hasn't implemented that yet (todo)"
+            if not args.update:
+                return 1
+    except KeyError:
+        pass
+
+    tempReport = readLog(jobid, output_dir)
+    if tempReport is None:
+        return 1
+
+    # todo: how to figure out if a result has already been harvested?
+    # idea: we just matched. How about we add a check against match["ocr_processing"][tag]["harvested"]?
+
+    # todo: ... maybe I should just link/embed the document, instead of injecting pieces of it?
+    tempReport["pubname"] = match["pubname"]
+    tempReport["URL"] = match["URL"]
+
+    try:
+        with open(jobpath + "/RESULT") as file:
+            for line in file:
+                if line.strip()=="0":
+                    tempReport["success"] = True
+                else:
+                    tempReport["success"] = False
+    except IOError:
+        tempReport["success"] = False
+
+    # get all files associated with the job
+    temp["filename"] = []
+    temp["contents"] = []
+
+    # todo: match (or update) against processing collection
+    list = glob.glob(jobpath+"/" + args.file_pattern)
+    for file in list:
+        temp["filename"].append(file)
+#            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
+    temp["harvested"] = True #indicate that this article+tag combination has been handled
+    match["%s_processing" % args.type] = { tag: temp }
+
+    # this will re-add the job reports if they're already in the db, since we're just pushing to a list
+    # can probably make an index on "path" and check against it.
+    if args.dryrun:
+        ppr = pprint.PrettyPrinter(indent=4)
+        print "This would have been pushed into %s.%s.jobs: " % (processings.name, tag)
+        ppr.pprint(tempReport)
+
+        print "And this would be the new article document: "
+        ppr.pprint(match)
+    else:
+        if not args.update: # don't update the processings database.
+            # todo: make it possible to update the databases without duplicating the "jobs" array
+            processings.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
+        articles.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
+    # todo: clean up all other stuff in the output directories?
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Harvest some condor output')
     parser.add_argument('output_dir', type=str, default="./", help="Output directory. The files you want to harvest are here.")
@@ -168,11 +236,6 @@ if __name__ == '__main__':
     output_dir = args.output_dir
     submit_dir = args.submit_dir
 
-    successTotalCPUTime = 0
-    totalSuccesses = 0
-    failTotalCPUTime = 0
-    totalFailures = 0
-
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
 
@@ -183,83 +246,8 @@ if __name__ == '__main__':
 
     # long-term todo: can each job run this (or something similar) when it comes home?
     for jobpath in joblist:
-        jobid = jobpath.split("/")[-2]
+        check = processJob(jobpath)
 
-        # match against the articles collection in the DB
-        match = getMatch(jobid, articles)
-        if match is None:
-            print "No match for the article found!"
-            continue
-        try:
-            if match["%s_processing" % args.type][tag]["harvested"]:
-                if DEBUG:
-                    print "The information for this job has already been added to the DB!"
-                    print "If you want to update it, too bad! Ian hasn't implemented that yet (todo)"
-                if not args.update:
-                    continue
-        except KeyError:
-            pass
-
-        tempReport = readLog(jobid, output_dir)
-        if tempReport is None:
-            continue
-
-        # todo: how to figure out if a result has already been harvested?
-        # idea: we just matched. How about we add a check against match["ocr_processing"][tag]["harvested"]?
-
-        # todo: ... maybe I should just link/embed the document, instead of injecting pieces of it?
-        tempReport["pubname"] = match["pubname"]
-        tempReport["URL"] = match["URL"]
-
-        try:
-            with open(jobpath + "/RESULT") as file:
-                for line in file:
-                    if line.strip()=="0":
-                        tempReport["success"] = True
-                    else:
-                        tempReport["success"] = False
-        except IOError:
-            tempReport["success"] = False
-
-        # get all files associated with the job
-        temp["filename"] = []
-        temp["contents"] = []
-
-        # todo: match (or update) against processing collection
-        list = glob.glob(jobpath+"/" + args.file_pattern)
-        for file in list:
-            temp["filename"].append(file)
-#            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
-        temp["harvested"] = True #indicate that this article+tag combination has been handled
-        match["%s_processing" % args.type] = { tag: temp }
-
-
-        if tempReport["success"]:
-            totalSuccesses += 1
-            successTotalCPUTime += tempReport["runTime"]
-        else:
-            totalFailures += 1
-            failTotalCPUTime += tempReport["runTime"]
-
-        # this will re-add the job reports if they're already in the db, since we're just pushing to a list
-        # can probably make an index on "path" and check against it.
-        if args.dryrun:
-            ppr = pprint.PrettyPrinter(indent=4)
-            print "This would have been pushed into %s.%s.jobs: " % (processings.name, tag)
-            ppr.pprint(tempReport)
-
-            print "And this would be the new article document: "
-            ppr.pprint(match)
-        else:
-            if not args.update: # don't update the processings database.
-                # todo: make it possible to update the databases without duplicating the "jobs" array
-                processings.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
-            articles.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
-        # todo: clean up all other stuff in the output directories?
-
-    print "Total CPU time of success: %s (%i total)" % (str(successTotalCPUTime), totalSuccesses)
-    print "Total CPU time of failures: %s (%i total)"% (str(failTotalCPUTime), totalFailures)
-    print "Failures were %.2f %% of total " % (100 * failTotalCPUTime / float(failTotalCPUTime + successTotalCPUTime) )
 
     """
     # temp make plot of runTimes
