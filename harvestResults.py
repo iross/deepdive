@@ -184,6 +184,11 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     temp["harvested"] = True #indicate that this article+tag combination has been handled
     match["%s_processing" % proctype] = { tag: temp }
 
+
+
+
+
+
     # this will re-add the job reports if they're already in the db, since we're just pushing to a list
     # can probably make an index on "path" and check against it.
     if dryrun:
@@ -194,9 +199,10 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         print "And this would be the new article document: "
         ppr.pprint(match)
     else:
-        if not update: # don't update the processings database.
+        if update: # don't update the processings database.
             # todo: make it possible to update the databases without duplicating the "jobs" array
             processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
+            # increase publication tallies
         articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
     # todo: clean up all other stuff in the output directories?
     return 0
