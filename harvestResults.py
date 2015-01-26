@@ -21,17 +21,17 @@ def cleanPath(path):
     filename = filename.split(".")[0]
     return filename
 
-def getMatch(jobpath, collection):
+def getMatch(jobid, collection, filepath_map):
     """
     Finds the document in the collection that matches the specified jobpath
 
-    :jobpath: Path to job output directory
+    :jobid: ID of job output directory (i.e. job000001)
     :collection: MongoDB collection to look over
     :returns: dict of matching document
 
     """
     # Elsevier-specific stuff for matching
-    pii = cleanPath(filepath_map[jobpath])
+    pii = cleanPath(filepath_map[jobid])
     url = "http://api.elsevier.com/content/article/pii/" + pii
     match = collection.find_one({"URL": url})
     return match
@@ -77,7 +77,7 @@ def parseResources(chunk):
             usage["memUsage"] = numbers[0]
     return usage
 
-def readLog(jobid, basedir):
+def readLog(jobpath):
     """
     Reads log to determine disk/mem usage, runtime
     For processing time, it will only grab the last execution/evict/terminated times.
@@ -93,7 +93,7 @@ def readLog(jobid, basedir):
 
     """
     try:
-        with open(basedir + "/" + jobid+"/process.log") as file:
+        with open(jobpath + "/process.log") as file:
             chunk = ""
             subTime = None
             execTime = None
@@ -101,8 +101,7 @@ def readLog(jobid, basedir):
             termTime = None
             runTime = None
             jobReport = {}
-            jobReport["path"] = basedir + "/" + jobid
-            # todo: grab article PDF path?
+            jobReport["path"] = jobpath
             for line in file:
                 if line.startswith("..."):
                     if chunk.startswith("000"): # submitted
@@ -135,6 +134,79 @@ def readLog(jobid, basedir):
         print "Couldn't find file at %s/%s/process.log" % (basedir, jobpath)
         return None
 
+def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_map, file_pattern, dryrun=False, update=False):
+    jobid = jobpath.split("/")[-2]
+
+    # match against the articles collection in the DB
+    match = getMatch(jobid, articlesColl, filepath_map)
+    if match is None:
+        print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
+            ( jobid, filepath_map[jobid] )
+        return 1
+    try:  # if this article + tag have already been harvested, then skip
+        if match["%s_processing" % proctype][tag]["harvested"]:
+            if DEBUG:
+                print "The information for this job has already been added to the DB!"
+            if not update: # if UPDATE flag isn't used, move to the next job
+                return 1
+    except KeyError:
+        pass
+
+    tempReport = readLog(jobpath)
+    if tempReport is None:
+        return 1
+
+    tempReport["pubname"] = match["pubname"]
+    tempReport["URL"] = match["URL"]
+
+    try:
+        with open(jobpath + "/RESULT") as file:
+            for line in file:
+                if line.strip()=="0":
+                    tempReport["success"] = True
+                else:
+                    tempReport["success"] = False
+    except IOError:
+        tempReport["success"] = False
+
+    # get all files associated with the job
+    temp = {}
+    temp["filename"] = []
+    temp["contents"] = []
+
+    list = glob.glob(jobpath+"/" + file_pattern)
+    for file in list:
+        temp["filename"].append(file)
+#            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
+    temp["harvested"] = True #indicate that this article+tag combination has been handled
+    match["%s_processing" % proctype] = { tag: temp }
+
+    # this will re-add the job reports if they're already in the db, since we're just pushing to a list
+    # can probably make an index on "path" and check against it.
+    if dryrun:
+        ppr = pprint.PrettyPrinter(indent=4)
+        print "This would have been pushed into %s.%s.jobs: " % (processingsColl.name, tag)
+        ppr.pprint(tempReport)
+
+        print "And this would be the new article document: "
+        ppr.pprint(match)
+    else:
+        # todo: make it possible to update the databases without duplicating the "jobs" array
+        # this will add the jobs to the jobslist again IFF update=True
+        processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
+        articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
+        # increase publication tallies
+        if tempReport["success"]:
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
+        else:
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
+
+    # todo: clean up all other stuff in the output directories?
+    return 0
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Harvest some condor output')
     parser.add_argument('output_dir', type=str, default="./", help="Output directory. The files you want to harvest are here.")
@@ -163,111 +235,18 @@ if __name__ == '__main__':
     temp={}
     runTimes = [] # temp for plots
 
-    # todo: add toggle to show what WOULD have been written to a DB vs actually write it.
     #todo: make sure these exist before we go too far
     output_dir = args.output_dir
     submit_dir = args.submit_dir
 
-    successTotalCPUTime = 0
-    totalSuccesses = 0
-    failTotalCPUTime = 0
-    totalFailures = 0
-
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
 
-    # todo: get the filepath_map from the original submit directory
     filepath_map = pickle.load(open(submit_dir + "/filepath_mapping.pickle"))
     output_dir = os.getcwd()+"/" + output_dir
     joblist = glob.glob(output_dir + "/job*/")
 
     # long-term todo: can each job run this (or something similar) when it comes home?
+    # (todoing -- setting up a watchdog to add files as they come back IAR - 26.Jan.2015)
     for jobpath in joblist:
-        jobid = jobpath.split("/")[-2]
-
-        # match against the articles collection in the DB
-        match = getMatch(jobid, articles)
-        if match is None:
-            print "No match for the article in %s!" % jobid
-            continue
-        try:
-            if match["%s_processing" % args.type][tag]["harvested"]:
-                if DEBUG:
-                    print "The information for this job has already been added to the DB!"
-                    print "If you want to update it, too bad! Ian hasn't implemented that yet (todo)"
-                if not args.update:
-                    continue
-        except KeyError:
-            pass
-
-        tempReport = readLog(jobid, output_dir)
-        if tempReport is None:
-            continue
-
-        # todo: how to figure out if a result has already been harvested?
-        # idea: we just matched. How about we add a check against match["ocr_processing"][tag]["harvested"]?
-
-        # todo: ... maybe I should just link/embed the document, instead of injecting pieces of it?
-        tempReport["pubname"] = match["pubname"]
-        tempReport["URL"] = match["URL"]
-
-        try:
-            with open(jobpath + "/RESULT") as file:
-                for line in file:
-                    if line.strip()=="0":
-                        tempReport["success"] = True
-                    else:
-                        tempReport["success"] = False
-        except IOError:
-            tempReport["success"] = False
-
-        # get all files associated with the job
-        temp["filename"] = []
-        temp["contents"] = []
-
-        # todo: match (or update) against processing collection
-        list = glob.glob(jobpath+"/" + args.file_pattern)
-        for file in list:
-            temp["filename"].append(file)
-#            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
-        temp["harvested"] = True #indicate that this article+tag combination has been handled
-        match["%s_processing" % args.type] = { tag: temp }
-
-
-        if tempReport["success"]:
-            totalSuccesses += 1
-            successTotalCPUTime += tempReport["runTime"]
-        else:
-            totalFailures += 1
-            failTotalCPUTime += tempReport["runTime"]
-
-        # this will re-add the job reports if they're already in the db, since we're just pushing to a list
-        # can probably make an index on "path" and check against it.
-        if args.dryrun:
-            ppr = pprint.PrettyPrinter(indent=4)
-            print "This would have been pushed into %s.%s.jobs: " % (processings.name, tag)
-            ppr.pprint(tempReport)
-
-            print "And this would be the new article document: "
-            ppr.pprint(match)
-        else:
-            if not args.update: # don't update the processings database.
-                # todo: make it possible to update the databases without duplicating the "jobs" array
-                processings.update( { "_id": tag }, { "$push": { "jobs" : tempReport } } )
-            articles.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
-        # todo: clean up all other stuff in the output directories?
-
-    print "Total CPU time of success: %s (%i total)" % (str(successTotalCPUTime), totalSuccesses)
-    print "Total CPU time of failures: %s (%i total)"% (str(failTotalCPUTime), totalFailures)
-    print "Failures were %.2f %% of total " % (100 * failTotalCPUTime / float(failTotalCPUTime + successTotalCPUTime) )
-
-    """
-    # temp make plot of runTimes
-    binwidth=1800
-    plt.hist(runTimes, bins=range(min(runTimes), 300000, binwidth), log=True)
-    plt.title("RunTimes for %s" % args.type.upper())
-    plt.xlabel("Time (seconds)")
-    plt.ylabel("Frequency")
-    plt.axvline(259200, color='r', linestyle='solid')
-    plt.savefig('failures_%s' %args.type.upper())
-    """
+        check = processJob(jobpath, args.tag, args.type, articles, processings, filepath_map, args.file_pattern, args.dryrun, args.update)

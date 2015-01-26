@@ -1,0 +1,23 @@
+_CONDOR_ANCESTOR_5450=10477:1418712817:1736197032
+_CONDOR_ANCESTOR_10477=12122:1419891701:1359493938
+_CONDOR_ANCESTOR_12122=12127:1419891702:3631151518
+TEMP=/var/lib/condor/execute/slot1/dir_12122
+_CONDOR_SCRATCH_DIR=/var/lib/condor/execute/slot1/dir_12122
+_CONDOR_SLOT=slot1_12
+BATCH_SYSTEM=HTCondor
+TMPDIR=/var/lib/condor/execute/slot1/dir_12122
+_CONDOR_CHIRP_CONFIG=/var/lib/condor/execute/slot1/dir_12122/.chirp.config
+_CONDOR_JOB_PIDS=
+TMP=/var/lib/condor/execute/slot1/dir_12122
+_CONDOR_JOB_AD=/var/lib/condor/execute/slot1/dir_12122/.job.ad
+_CONDOR_JOB_IWD=/var/lib/condor/execute/slot1/dir_12122
+_CHIRP_DELAYED_UPDATE_PREFIX=Chirp*
+_CONDOR_MACHINE_AD=/var/lib/condor/execute/slot1/dir_12122/.machine.ad
+PATH=/usr/local/bin:/usr/kerberos/bin:/usr/bin:/bin
+MachineAdTest: looking for <IsEuclid>
+Euclid test returned <no>
+Calling curl to fetch chtcinnerwrapper try 0
+Curl error <0>
+MachineAdTest: looking for <IsEuclid>
+Done Running chtcinnerwrapper Result was <0>
+All went well!
