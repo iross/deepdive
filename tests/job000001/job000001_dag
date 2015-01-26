@@ -1,0 +1,3 @@
+JOB job000001 process.cmd dir job000001
+SCRIPT POST job000001 /home/iaross/elsevier_002/ChtcRun/Palaeoworld_NLP_out_NLP//postjob.pl
+RETRY job000001 10

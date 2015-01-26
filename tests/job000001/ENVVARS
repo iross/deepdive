@@ -1,0 +1,12 @@
+chtcruntop = /home/iaross/elsevier_002/ChtcRun
+cmdtorun = do.sh
+file = job000001
+jobfolder = /home/iaross/elsevier_002/ChtcRun/Palaeoworld_NLP/job000001/
+jobsubdag = /home/iaross/elsevier_002/ChtcRun/Palaeoworld_NLP_out_NLP/job000001/job000001_dag
+jobtemplateloc = /home/iaross/elsevier_002/ChtcRun
+passtochtcwrapper = 
+postjobloc = /home/iaross/elsevier_002/ChtcRun/Palaeoworld_NLP_out_NLP/
+runfolder = /home/iaross/elsevier_002/ChtcRun/Palaeoworld_NLP_out_NLP/job000001/
+sharedfolder = /home/iaross/elsevier_002/ChtcRun/Palaeoworld_NLP/shared/
+submitfileloc = /home/iaross/elsevier_002/ChtcRun/Palaeoworld_NLP_out_NLP/job000001
+type = Other

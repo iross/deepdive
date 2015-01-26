@@ -1,0 +1,5 @@
+Mon Dec 29 16:21:43 2014 CURL result=<0> signal=<0> time=<0> url=<http://proxy.chtc.wisc.edu/SQUID/SLIBS2.tar.gz> 
+Mon Dec 29 16:22:03 2014 CURL result=<0> signal=<0> time=<20> url=<http://proxy.chtc.wisc.edu/SQUID//iaross/nlp3.jar> 
+Mon Dec 29 16:22:06 2014 CURL result=<0> signal=<0> time=<3> url=<http://proxy.chtc.wisc.edu/SQUID//iaross/jre-7u51-linux-x64.tar.gz> 
+Mon Dec 29 16:25:47 2014 JOBTIME duration=<217> result=<0> signal=<0> type=<do.sh > 
+Mon Dec 29 16:25:47 2014 RUNTIME duration=<244> type=<Other> 
