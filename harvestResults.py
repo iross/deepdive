@@ -102,7 +102,6 @@ def readLog(jobpath):
             runTime = None
             jobReport = {}
             jobReport["path"] = jobpath
-            # todo: grab article PDF path?
             for line in file:
                 if line.startswith("..."):
                     if chunk.startswith("000"): # submitted
@@ -148,7 +147,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         if match["%s_processing" % proctype][tag]["harvested"]:
             if DEBUG:
                 print "The information for this job has already been added to the DB!"
-            if not args.update: # if UPDATE flag isn't used, move to the next job
+            if not update: # if UPDATE flag isn't used, move to the next job
                 return 1
     except KeyError:
         pass
@@ -157,7 +156,6 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     if tempReport is None:
         return 1
 
-    # todo: ... maybe I should just link/embed the document, instead of injecting pieces of it?
     tempReport["pubname"] = match["pubname"]
     tempReport["URL"] = match["URL"]
 
@@ -176,18 +174,12 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     temp["filename"] = []
     temp["contents"] = []
 
-    # todo: match (or update) against processing collection
     list = glob.glob(jobpath+"/" + file_pattern)
     for file in list:
         temp["filename"].append(file)
 #            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
     temp["harvested"] = True #indicate that this article+tag combination has been handled
     match["%s_processing" % proctype] = { tag: temp }
-
-
-
-
-
 
     # this will re-add the job reports if they're already in the db, since we're just pushing to a list
     # can probably make an index on "path" and check against it.
@@ -199,11 +191,18 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         print "And this would be the new article document: "
         ppr.pprint(match)
     else:
-        if update: # don't update the processings database.
-            # todo: make it possible to update the databases without duplicating the "jobs" array
-            processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
-            # increase publication tallies
+        # todo: make it possible to update the databases without duplicating the "jobs" array
+        # this will add the jobs to the jobslist again IFF update=True
+        processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
         articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
+        # increase publication tallies
+        if tempReport["success"]:
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
+        else:
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
+
     # todo: clean up all other stuff in the output directories?
     return 0
 
@@ -236,7 +235,6 @@ if __name__ == '__main__':
     temp={}
     runTimes = [] # temp for plots
 
-    # todo: add toggle to show what WOULD have been written to a DB vs actually write it.
     #todo: make sure these exist before we go too far
     output_dir = args.output_dir
     submit_dir = args.submit_dir
@@ -244,11 +242,11 @@ if __name__ == '__main__':
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
 
-    # todo: get the filepath_map from the original submit directory
     filepath_map = pickle.load(open(submit_dir + "/filepath_mapping.pickle"))
     output_dir = os.getcwd()+"/" + output_dir
     joblist = glob.glob(output_dir + "/job*/")
 
     # long-term todo: can each job run this (or something similar) when it comes home?
+    # (todoing -- setting up a watchdog to add files as they come back IAR - 26.Jan.2015)
     for jobpath in joblist:
         check = processJob(jobpath, args.tag, args.type, articles, processings, filepath_map, args.file_pattern, args.dryrun, args.update)
