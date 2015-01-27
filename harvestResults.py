@@ -135,6 +135,8 @@ def readLog(jobpath):
         return None
 
 def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_map, file_pattern, dryrun=False, update=False):
+    if not jobpath.endswith("/"): #ensure we have a trailing /
+        jobpath = jobpath + "/"
     jobid = jobpath.split("/")[-2]
 
     # match against the articles collection in the DB

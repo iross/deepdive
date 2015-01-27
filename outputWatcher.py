@@ -2,6 +2,7 @@
 import time
 import os
 import pdb
+import pymongo
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from harvestResults import *
@@ -14,8 +15,12 @@ TYPE_MAP = {".html": "ocr",
             ".text": "nlp",
             }
 
+PATTERN_MAP = {"ocr": "*.html",
+                "nlp": "*.text",
+                }
+
 STRIP_MAP = { "ocr": "_out",
-              "nlp": "NLP_out_NLP",
+              "nlp": "_NLP_out_NLP",
               }
 
 def parsePath(filepath):
@@ -28,6 +33,19 @@ def parsePath(filepath):
     """
     root,extension = os.path.splitext(filepath)
     return root, extension
+
+def getSubmitDir(jobpath, proctype):
+    """
+    TODO: Docstring for getSubmitDIr.
+
+    :jobpath: TODO
+    :proctype: TODO
+    :returns: TODO
+
+    """
+    basepath = os.path.dirname(jobpath)
+    basepath = basepath.replace(STRIP_MAP[proctype], "")
+    return basepath
 
 class FileDealer(FileSystemEventHandler):
     """Docstring for FileDealer. """
@@ -42,6 +60,14 @@ class FileDealer(FileSystemEventHandler):
         self.queue = {}
         for jobtype in STRIP_MAP.keys():
             self.queue[jobtype] = []
+        client = pymongo.MongoClient()
+        articlesdb = client.articles_dev
+        self.articlesColl = articlesdb.articles
+
+        procdb = client.processing_dev
+        self.ocrProcessingColl = procdb["ocr_processing"]
+        self.nlpProcessingColl = procdb["nlp_processing"]
+
 
     def process(self):
         """
@@ -50,12 +76,24 @@ class FileDealer(FileSystemEventHandler):
 
         """
         for job in self.queue["ocr"]:
-            processJob(job, "ocr")
-            # filemap path pickle needed to extract PII/URL
-            pass
+            # filtering -- if NLP-type path is in the output, remove it and move on
+            # (implies condor copied input files back)
+            if STRIP_MAP["nlp"] in job:
+                self.queue["ocr"].remove(job)
+                continue
+
+            # need to get the filepath_map, relevant file_pattern for this job
+            orig_submit = getSubmitDir(job, "ocr")
+            filepath_map = pickle.load(open(orig_submit+"/filepath_mapping.pickle"))
+            file_pattern = PATTERN_MAP["ocr"]
+            processJob(job, TAG, "ocr", self.articlesColl, self.ocrProcessingColl, filepath_map, file_pattern, dryrun=True)
+            self.queue["ocr"].remove(job)
         for job in self.queue["nlp"]:
-            pass
-        pass
+            orig_submit = getSubmitDir(job, "nlp")
+            filepath_map = pickle.load(open(orig_submit+"/filepath_mapping.pickle"))
+            file_pattern = PATTERN_MAP["nlp"]
+            processJob(job, TAG, "nlp", self.articlesColl, self.nlpProcessingColl, filepath_map, file_pattern, dryrun=True)
+            self.queue["nlp"].remove(job)
 
     def add_to_queue(self, jobpath, jobtype):
         """
@@ -71,26 +109,28 @@ class FileDealer(FileSystemEventHandler):
             self.queue[jobtype].append(jobpath)
         pass
 
-    def on_modified(self, event):
+    def on_created(self, event):
         root,extension = parsePath(event.src_path)
-        if extension == ".test":
+        if extension == ".debug":
             pdb.set_trace()
         if extension == ".text" or extension == ".html" or extension == ".hocr":
             self.add_to_queue(os.path.dirname(root), TYPE_MAP[extension])
         else:
             pass
 
-
-
 if __name__ == "__main__":
     event_handler = FileDealer()
     observer = Observer()
     observer.schedule(event_handler, path='.', recursive=True)
     observer.start()
+    proc_n = 1
 
     try:
         while True:
             time.sleep(1)
+            print "Before: ", event_handler.queue
+            event_handler.process()
+            print "After: ", event_handler.queue
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
