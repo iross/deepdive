@@ -9,6 +9,14 @@ import pprint
 
 DEBUG=False
 
+STRIP_MAP = { "ocr": "_out",
+              "nlp": "_NLP_out_NLP",
+              }
+
+PATTERN_MAP = {"ocr": "*.html",
+                "nlp": "*.text",
+                }
+
 def cleanPath(path):
     """
     Cleans up raw path of pdf to just the name of the PDF (no extension or directories)
@@ -135,6 +143,14 @@ def readLog(jobpath):
         return None
 
 def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_map, file_pattern, dryrun=False, update=False):
+    """
+    Only UNPROCESSED jobs or JOBS THAT WERE FAILURES AND NEED TO BE RE-CHECKED
+    should enter this function.
+
+    Otherwise, duplicates could enter the processing database
+
+    """
+
     if not jobpath.endswith("/"): #ensure we have a trailing /
         jobpath = jobpath + "/"
     jobid = jobpath.split("/")[-2]
@@ -144,19 +160,19 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     if match is None:
         print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
             ( jobid, filepath_map[jobid] )
-        return 1
+        return 1,False
     try:  # if this article + tag have already been harvested, then skip
         if match["%s_processing" % proctype][tag]["harvested"]:
             if DEBUG:
                 print "The information for this job has already been added to the DB!"
             if not update: # if UPDATE flag isn't used, move to the next job
-                return 1
+                return 1,False
     except KeyError:
         pass
 
     tempReport = readLog(jobpath)
     if tempReport is None:
-        return 1
+        return 1,False
 
     tempReport["pubname"] = match["pubname"]
     tempReport["URL"] = match["URL"]
@@ -193,62 +209,86 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         print "And this would be the new article document: "
         ppr.pprint(match)
     else:
-        # todo: make it possible to update the databases without duplicating the "jobs" array
-        # this will add the jobs to the jobslist again IFF update=True
-        processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
-        articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False ) # upsert: false won't create a new one. Since we just looked for it, we should never actually run into it..
-        # increase publication tallies
-        if tempReport["success"]:
-            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
-            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
+        if update == True:
+            # we want to update the processings collection,
+            # in case jobs have migrated from "fail" to "success"
+            # to do this, we need to grab the old job list and update it, rather than
+            # pushing the job
+            jobs_list = processingsColl.find_one( { "tag": tag } )["jobs"]
+            jobs_list = [tempReport if job["URL"] == tempReport["URL"] else job for job in jobs_list]
+            processingsColl.update({ "tag": tag}, {"$set": {"jobs": jobs_list}} )
+            if tempReport["success"]: # adjust time from failure to success
+                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
+                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
+                processingsColl.update({ "tag": tag },
+                        {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : -1 } }, upsert = True)
+                processingsColl.update({ "tag": tag },
+                        {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: -tempReport["runTime"]} } , upsert = True)
         else:
-            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
-            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
+            processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
+            # update publication tallies, if the article changed state
+            if tempReport["success"]:
+                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
+                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
+            else:
+                processingsColl.update({ "tag": tag },
+                        {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
+                processingsColl.update({ "tag": tag },
+                        {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
+
+        articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False )
+
 
     # todo: clean up all other stuff in the output directories?
-    return 0
+    return 0, tempReport["success"]
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Harvest some condor output')
-    parser.add_argument('output_dir', type=str, default="./", help="Output directory. The files you want to harvest are here.")
-    parser.add_argument('submit_dir', type=str, default="./", help="Submit directory. Must contain the filepath_mapping.pickle which \
-            maps the job id to the original PDFs")
-    parser.add_argument('type', type=str, default="ocr", help="OCR or NLP?")
     parser.add_argument('tag', type=str, default="", help="Tag of this processing batch")
-    parser.add_argument('file_pattern', type=str, default="*.html", help="Pattern for matching output files. Default: *.html")
     parser.add_argument('--dryrun', type=bool, required=False, default=False, help="Don't actually write to the databases--only show\
             what would have been added/updated.")
     parser.add_argument('--update', type=bool, required=False, default=False, help="Force update to the database.")
     args = parser.parse_args()
-    args.type = args.type.lower()
-    if args.type!="ocr" and args.type!="nlp":
-        print "Please choose a valid processing type! (ocr or nlp)"
-        sys.exit(1)
 
     client = pymongo.MongoClient()
     articlesdb = client.articles_dev
     articles = articlesdb.articles
 
     procdb = client.processing_dev
-    processings = procdb["%s_processing" % args.type]
-
-    # need this for matching to PDF
-    temp={}
-    runTimes = [] # temp for plots
-
-    #todo: make sure these exist before we go too far
-    output_dir = args.output_dir
-    submit_dir = args.submit_dir
 
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
 
-    filepath_map = pickle.load(open(submit_dir + "/filepath_mapping.pickle"))
-    output_dir = os.getcwd()+"/" + output_dir
-    joblist = glob.glob(output_dir + "/job*/")
+    output_dirs = glob.glob(os.getcwd() + "/*out*/")
+    for output_dir in output_dirs:
+        if "NLP" in output_dir:
+            proctype = "nlp"
+            processings = procdb["nlp_processing"]
+        else:
+            proctype = "ocr"
+            processings = procdb["ocr_processing"]
+        submit_dir = output_dir.replace(STRIP_MAP[proctype], "" )
+        filepath_map = pickle.load(open(submit_dir + "/filepath_mapping.pickle"))
+        joblist = glob.glob(output_dir + "/job*/")
 
-    # long-term todo: can each job run this (or something similar) when it comes home?
-    # (todoing -- setting up a watchdog to add files as they come back IAR - 26.Jan.2015)
-    for jobpath in joblist:
-        check = processJob(jobpath, args.tag, args.type, articles, processings, filepath_map, args.file_pattern, args.dryrun, args.update)
+        try:
+            processed = pickle.load(open("processed.pickle"))
+        except IOError:
+            processed = {}
+
+        for jobpath in joblist:
+            try:
+                if processed[jobpath] == True:
+                    continue
+            except KeyError:
+                pass
+            check = None
+            jobSuccess = None
+            # todo: only want "update" to update the info for new jobs OR jobs that previously failed
+            check,jobSuccess = processJob(jobpath, args.tag, proctype, articles, processings, filepath_map, PATTERN_MAP[proctype], args.dryrun, args.update)
+            if (check == 0 and jobSuccess is not None):
+                processed[jobpath] = jobSuccess
+
+        if not args.dryrun:
+            pickle.dump(processed, open("processed.pickle","w"))
