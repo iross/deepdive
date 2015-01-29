@@ -291,7 +291,6 @@ if __name__ == '__main__':
         for jobpath in joblist:
             try:
                 if processed[jobpath] == True:
-                    print "skipped"
                     continue
             except KeyError:
                 pass
