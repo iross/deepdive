@@ -1,13 +1,16 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
 import pickle
 import pymongo
 import glob
 import os,sys
-import pdb
 import argparse
 from datetime import datetime
 import pprint
 
 DEBUG=False
+VERBOSE=False
 
 STRIP_MAP = { "ocr": "_out",
               "nlp": "_NLP_out_NLP",
@@ -139,7 +142,8 @@ def readLog(jobpath):
                     chunk+=line
         return jobReport
     except IOError:
-        print "Couldn't find file at %s/%s/process.log" % (basedir, jobpath)
+        if VERBOSE:
+            print "Couldn't find file at %s/process.log" % jobpath
         return None
 
 def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_map, file_pattern, dryrun=False, update=False):
@@ -158,8 +162,9 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     # match against the articles collection in the DB
     match = getMatch(jobid, articlesColl, filepath_map)
     if match is None:
-        print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
-            ( jobid, filepath_map[jobid] )
+        if VERBOSE:
+            print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
+                ( jobid, filepath_map[jobid] )
         return 1,False
     try:  # if this article + tag have already been harvested, then skip
         if match["%s_processing" % proctype][tag]["harvested"]:
@@ -172,6 +177,10 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
 
     tempReport = readLog(jobpath)
     if tempReport is None:
+        return 1,False
+    try:
+        tempReport["runTime"]
+    except KeyError: # no runTime reported -- probably still running
         return 1,False
 
     tempReport["pubname"] = match["pubname"]
@@ -225,7 +234,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
                 processingsColl.update({ "tag": tag },
                         {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: -tempReport["runTime"]} } , upsert = True)
         else:
-            processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
+#            processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
             # update publication tallies, if the article changed state
             if tempReport["success"]:
                 processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
@@ -246,6 +255,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Harvest some condor output')
     parser.add_argument('tag', type=str, default="", help="Tag of this processing batch")
+    parser.add_argument('--basedir', type=str, default=os.getcwd(), help="The base directory")
     parser.add_argument('--dryrun', type=bool, required=False, default=False, help="Don't actually write to the databases--only show\
             what would have been added/updated.")
     parser.add_argument('--update', type=bool, required=False, default=False, help="Force update to the database.")
@@ -260,7 +270,8 @@ if __name__ == '__main__':
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
 
-    output_dirs = glob.glob(os.getcwd() + "/*out*/")
+    basedir = os.path.abspath(args.basedir)
+    output_dirs = glob.glob(basedir + "/*out*/")
     for output_dir in output_dirs:
         if "NLP" in output_dir:
             proctype = "nlp"
@@ -273,13 +284,14 @@ if __name__ == '__main__':
         joblist = glob.glob(output_dir + "/job*/")
 
         try:
-            processed = pickle.load(open("processed.pickle"))
+            processed = pickle.load(open(basedir+"/processed.pickle"))
         except IOError:
             processed = {}
 
         for jobpath in joblist:
             try:
                 if processed[jobpath] == True:
+                    print "skipped"
                     continue
             except KeyError:
                 pass
@@ -291,4 +303,4 @@ if __name__ == '__main__':
                 processed[jobpath] = jobSuccess
 
         if not args.dryrun:
-            pickle.dump(processed, open("processed.pickle","w"))
+            pickle.dump(processed, open(basedir+"/processed.pickle","w"))
