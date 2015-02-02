@@ -283,7 +283,7 @@ if __name__ == '__main__':
             processings = procdb["nlp_processing"]
         elif "FontType" in output_dir:
             proctype = "fonttype"
-            processings = procdb["nlp_processing"]
+            processings = procdb["fonttype_processing"]
         elif "cuneiform" in output_dir: # will have to do something else in tesseract+cuneiform combined runs
             proctype = "cuneiform"
             processings = procdb["cuneiform_processing"]
