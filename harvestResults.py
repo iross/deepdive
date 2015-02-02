@@ -8,16 +8,21 @@ import os,sys
 import argparse
 from datetime import datetime
 import pprint
+import pdb
 
 DEBUG=False
 VERBOSE=False
 
 STRIP_MAP = { "ocr": "_out",
               "nlp": "_NLP_out_NLP",
+              "cuneiform": "_out",
+              "fonttype": "_FontType_out_FontType",
               }
 
 PATTERN_MAP = {"ocr": "*.html",
                 "nlp": "*.text",
+                "cuneiform": "*.html",
+                "fonttype": "*.text",
                 }
 
 def cleanPath(path):
@@ -276,6 +281,12 @@ if __name__ == '__main__':
         if "NLP" in output_dir:
             proctype = "nlp"
             processings = procdb["nlp_processing"]
+        elif "FontType" in output_dir:
+            proctype = "fonttype"
+            processings = procdb["nlp_processing"]
+        elif "cuneiform" in output_dir: # will have to do something else in tesseract+cuneiform combined runs
+            proctype = "cuneiform"
+            processings = procdb["cuneiform_processing"]
         else:
             proctype = "ocr"
             processings = procdb["ocr_processing"]
