@@ -1,13 +1,17 @@
 import pymongo
 import pdb
-import os
+import os, shutil
 import subprocess
+import pickle
 
 STAGING = "./dev_staging/"
-TYPE = "ocr"
+TAG = "elsevier_002"
+TYPE = "nlp"
+LIMIT = 10
 
-client = pymongo.MongoClient()
-articlesdb = client.articles_dev
+uri = "mongodb://reader:testpass@127.0.0.1/?authMechanism=MONGODB-CR"
+client = pymongo.MongoClient(uri)
+articlesdb = client.articles
 articles = articlesdb.articles
 
 def createSymlinks(files, count, type):
@@ -19,29 +23,69 @@ def createSymlinks(files, count, type):
     # then, gather all the files + processings
     if not os.path.exists(STAGING+"job%06d/" % count ):
         os.makedirs(STAGING+"job%06d/" % count)
+    # todo: make filepath_mapping pickle
+    if len(files) > 1 and (type == "ocr" or type=="cuneiform"):
+        print "Warning! Exepcted only one input file, but found %s!" % len(files)
     for file in files:
         try:
-            pdb.set_trace()
-            os.symlink(file,STAGING+"job%06d/" % (count) + "input" + os.path.splitext(file)[-1])
+            if type == "nlp" or type == "fonttype":
+                os.symlink(file,STAGING+"job%06d/" % (count) + str(os.path.basename(file)) )
+            else: # tesseract/cuneiform -- should only be one file
+                os.symlink(file,STAGING+"job%06d/" % (count) + "input" + os.path.splitext(file)[-1])
         except OSError as e:
             if e.errno == 17:
                 continue
     return 0
 
-# first, find results that meet the query
-doclist = {}
-# look for articles that match a query
-count = 0
-for article in articles.find( { "pubname" : "Palaeoworld" } ):
-    # move symlinks into a staging area (STAGING/job000xxx/filename.ext)
-    filelist = [article["filepath"]]
-    pdb.set_trace()
-    check = createSymlinks(filelist, count, TYPE)
-    count += 1
-    # name them input.pdf
-    # create a filepath_mapping.pickle
+if __name__ == '__main__':
+    # first, find results that meet the query
+    doclist = {}
+    # look for articles that match a query
+    count = 1
+    filepath_mapping = {}
+    query = {}
+    # todo: clean up these queries
+    if TYPE == "ocr":
+        query = { "ocr_processing.%s" % TAG:{" $exists": False} }
+    elif TYPE == "cuneiform":
+        query = { "cuneiform_processing.%s" % TAG:{" $exists": False} }
+    elif TYPE == "nlp":
+        query = { "ocr_processing.%s.harvested" % TAG:True, "nlp_processing.%s" % TAG: {"$exists": False}}
+        query = { "ocr_processing.%s.harvested" % TAG:True, "nlp_processing.%s" % TAG: {"$exists": False}}
+    elif TYPE == "fonttype":
+        query = { "cuneiform_processing.%s.harvested" % TAG:True, "fonttype_processing.%s" % TAG: {"$exists": False}}
 
-    # but we also want to be able to submit NLP jobs,
-    # so add flag (?) to symlink the OCR files
-    pass
+    articles_list = articles.find(query).limit(LIMIT)
+    for article in articles_list:
+        # todo: create a filepath_mapping.pickle
+        if TYPE == "ocr":
+            filelist = [article["filepath"]]
+        if TYPE == "cuneiform":
+            filelist = [article["filepath"]]
+        elif TYPE == "nlp":
+            filelist = article["ocr_processing"][TAG]["filename"]
+        elif TYPE == "fonttype":
+            filelist = article["cuneiform_processing"][TAG]["filename"]
+        if filelist == []:
+            continue
+        check = createSymlinks(filelist, count, TYPE)
+        count += 1
+        filepath_mapping["job%06d" % count] = article["filepath"]
+    pickle.dump(filepath_mapping, open( STAGING+"/filepath_mapping.pickle","w") )
+#    if not os.path.exists(STAGING+"shared/"):
+#        os.mkdir(STAGING+"shared/")
+    if TYPE == "ocr" or TYPE=="cuneiform":
+        shutil.copytree("/home/iaross/elsevier_002_cuneiform/ChtcRun/shared",STAGING+"/shared/")
+        print "Submit directories prepared! Use mkdag to create the DAGs, passing relevant runtime arguments. e.g.:"
+        print "./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg=\"--cuneiform\" --parg=\"--no-tesseract\"\
+        --data=%s --output=%s_out --pattern=*.html --type=other" % STAGING
+    elif TYPE == "nlp":
+        shutil.copytree("/home/iaross/elsevier_002_cuneiform/ChtcRun/NLPshared",STAGING+"/shared/")
+        print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
+        print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=\"%s\"_out_NLP --pattern=SUCCEED.txt --type=other" % (STAGING, STAGING)
+    elif TYPE == "fonttype":
+        shutil.copytree("/home/iaross/elsevier_002_cuneiform/ChtcRun/fontshared",STAGING+"/shared/")
+        print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
+        print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=\"%s\"_out_FontType --pattern=SUCCEED.txt --type=other" % (STAGING, STAGING)
 
+    # todo: create shared directory too
