@@ -4,7 +4,7 @@ import subprocess
 import pickle
 import argparse
 
-uri = "mongodb://reader:testpass@127.0.0.1/?authMechanism=MONGODB-CR"
+uri = "mongodb://reader:testpass@deepdivesubmit.chtc.wisc.edu/?authMechanism=MONGODB-CR"
 client = pymongo.MongoClient(uri)
 articlesdb = client.articles
 articles = articlesdb.articles
@@ -70,9 +70,15 @@ if __name__ == '__main__':
     for article in articles_list:
         # todo: create a filepath_mapping.pickle
         if type == "ocr":
-            filelist = [article["filepath"]]
+            try:
+                filelist = [article["filepath"]]
+            except KeyError: # happened to grab an article before the 'filepath' was written
+                continue
         if type == "cuneiform":
-            filelist = [article["filepath"]]
+            try:
+                filelist = [article["filepath"]]
+            except KeyError: # happened to grab an article before the 'filepath' was written
+                continue
         elif type == "nlp":
             filelist = article["ocr_processing"][tag]["filename"]
         elif type == "fonttype":
@@ -80,19 +86,19 @@ if __name__ == '__main__':
         if filelist == []:
             continue
         check = createSymlinks(filelist, submit_dir, count, type)
-        count += 1
         filepath_mapping["job%06d" % count] = article["filepath"]
+        count += 1
     with open(submit_dir+"/filepath_mapping.pickle","wb") as f:
         pickle.dump(filepath_mapping, f )
     if type == "ocr" or type=="cuneiform":
-        shutil.copytree("/home/iaross/elsevier_002_cuneiform/ChtcRun/shared",submit_dir+"/shared/")
+        shutil.copytree("./shared",submit_dir+"/shared/")
         print "Submit directories prepared! Use mkdag to create the DAGs, passing relevant runtime arguments. e.g.:"
         print "./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg=\"--cuneiform\" --parg=\"--no-tesseract\" --data=%s --output=%s_out --pattern=*.html --type=other" % (submit_dir, submit_dir)
     elif type == "nlp":
-        shutil.copytree("/home/iaross/elsevier_002_cuneiform/ChtcRun/NLPshared",submit_dir+"/shared/")
+        shutil.copytree("./NLPshared",submit_dir+"/shared/")
         print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
         print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=\"%s\"_out_NLP --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)
     elif type == "fonttype":
-        shutil.copytree("/home/iaross/elsevier_002_cuneiform/ChtcRun/fontshared",submit_dir+"/shared/")
+        shutil.copytree("./fontshared",submit_dir+"/shared/")
         print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
         print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=\"%s\"_out_FontType --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)
