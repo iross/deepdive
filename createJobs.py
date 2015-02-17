@@ -3,8 +3,17 @@ import os, shutil, sys
 import subprocess
 import pickle
 import argparse
+import ConfigParser
+import urllib
 
-uri = "mongodb://reader:testpass@deepdivesubmit.chtc.wisc.edu/?authMechanism=MONGODB-CR"
+config = ConfigParser.RawConfigParser()
+config.read('db_conn.cfg')
+
+reader_user = config.get('database', 'reader_user')
+reader_password = config.get('database', 'reader_password')
+reader_password = urllib.quote_plus(reader_password)
+
+uri = "mongodb://%s:%s@deepdivesubmit.chtc.wisc.edu/?authMechanism=MONGODB-CR" % (reader_user, reader_password)
 client = pymongo.MongoClient(uri)
 articlesdb = client.articles
 articles = articlesdb.articles
