@@ -6,7 +6,7 @@ journal_clean=${journal//,/}
 journal_clean=${journal_clean// /_}
 
 echo "Running pdf_to_dag with args $2 and submit_$journal_clean"
-python ../deepdive/pdf_to_dag.py "$2" "submit_$journal_clean"
+python ../pdf_to_dag.py "$2" "submit_$journal_clean"
 
 # assume ChtcRun/shared exists and holds all common shared junk
 cp -rL shared/ submit_$journal_clean/
