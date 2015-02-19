@@ -62,7 +62,7 @@ def get_job_directory(input_path, output_path):
                 try:
                     os.symlink(filepath, link_name)
                     info[new_job_folder_name] = filepath
-                except os.error as e:
+                except os.error, e:
                     print "Fail to create symbol link %s towards %s" % (link_name, filepath)
                     raise e
     return info
@@ -72,9 +72,10 @@ def main(argv):
     if len(argv) == 3 and os.path.isdir(argv[1]) and not os.path.exists(argv[2]):
         info = get_job_directory(argv[1], argv[2])
         try:
-            with open(os.path.join(argv[2], "filepath_mapping.pickle"), 'wb') as f:
-                pickle.dump(info, f)
-        except pickle.PickleError as e:
+            f = open(os.path.join(argv[2], "filepath_mapping.pickle"), 'wb')
+            pickle.dump(info, f)
+            f.close()
+        except pickle.PickleError, e:
             print "WARNING: Fail to serialize original filepath information"
             raise e
         else:
