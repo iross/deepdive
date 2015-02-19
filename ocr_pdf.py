@@ -61,7 +61,7 @@ def unzip(zip_file, func=call):
     cmd = "unzip -o '%s'" % zip_file
     try:
         return func(cmd)
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError, e:
         if e.returncode != 2:
             raise e
 
@@ -81,7 +81,7 @@ def k2pdfopt(pdf_file, output_file, func=call):
     """
     try:
         os.remove(output_file)
-    except OSError as e:
+    except OSError, e:
         if e.errno != 2:
             raise e
     cmd = "./k2pdfopt -ui- -x -w 2160 -h 3840 -odpi 300 '%s' -o '%s'" % (pdf_file, output_file)
@@ -206,7 +206,10 @@ def tiff_to_html(tiff_path, output_folder_path=None, func=call):
     :returns: 0 if successful
 
     """
-    output_folder_path = os.path.abspath(output_folder_path) if output_folder_path else os.path.abspath('.')
+    if output_folder_path:
+        output_folder_path = os.path.abspath(output_folder_path)
+    else:
+        os.path.abspath('.')
     hocr_path = os.path.join(output_folder_path, os.path.basename(tiff_path))
     cmd = "./cde-package/cde-exec 'tesseract' '%s' '%s.hocr' hocr" % (tiff_path, hocr_path)
     return func(cmd)
@@ -240,7 +243,7 @@ class OcrPdf(object):
             self.cuneiform = cuneiform
             self.tesseract = tesseract
             self.output_folder_path = output_folder_path
-        except IOError as e:
+        except IOError, e:
             print "ERROR\tInvalid filepath %s, %s" % (stdout_filepath, stderr_filepath)
             if self.stdout:
                 self.stdout.close()
@@ -251,14 +254,14 @@ class OcrPdf(object):
         shutil.rmtree('tmp', True)
         try:
             os.mkdir('tmp')
-        except OSError as e:
+        except OSError, e:
             print "ERROR\tCreate tmp folder"
             raise e
 
         if self.output_folder_path and not os.path.isdir(self.output_folder_path):
             try:
                 os.mkdir(self.output_folder_path)
-            except OSError as e:
+            except OSError, e:
                 print "ERROR\tCreate output folder"
                 raise e
 
