@@ -3,11 +3,11 @@ import os, shutil, sys
 import subprocess
 import pickle
 import argparse
-import urllib
 import ConfigParser
+import urllib
 
 config = ConfigParser.RawConfigParser()
-config.read('./db.cfg')
+config.read('db_conn.cfg')
 
 reader_user = config.get('database', 'reader_user')
 reader_password = config.get('database', 'reader_password')
