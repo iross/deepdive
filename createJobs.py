@@ -3,8 +3,17 @@ import os, shutil, sys
 import subprocess
 import pickle
 import argparse
+import urllib
+import ConfigParser
 
-uri = "mongodb://reader:testpass@deepdivesubmit.chtc.wisc.edu/?authMechanism=MONGODB-CR"
+config = ConfigParser.RawConfigParser()
+config.read('./db.cfg')
+
+reader_user = config.get('database', 'reader_user')
+reader_password = config.get('database', 'reader_password')
+reader_password = urllib.quote_plus(reader_password)
+
+uri = "mongodb://%s:%s@deepdivesubmit.chtc.wisc.edu/?authMechanism=MONGODB-CR" % (reader_user, reader_password)
 client = pymongo.MongoClient(uri)
 articlesdb = client.articles
 articles = articlesdb.articles
@@ -29,6 +38,7 @@ def createSymlinks(files, submit_dir, count, type):
                 os.symlink(file,submit_dir+"/job%06d/" % (count) + "input" + os.path.splitext(file)[-1])
         except OSError as e:
             if e.errno == 17:
+                print "Error 17!"
                 continue
     return 0
 
@@ -61,10 +71,9 @@ if __name__ == '__main__':
     elif type == "cuneiform":
         query = { "cuneiform_processing.%s" % tag:{"$exists": False} }
     elif type == "nlp":
-        query = { "ocr_processing.%s.harvested" % tag:True, "nlp_processing.%s" % tag: {"$exists": False}}
-        query = { "ocr_processing.%s.harvested" % tag:True, "nlp_processing.%s" % tag: {"$exists": False}}
+        query = { "ocr_processing.%s.harvested" % tag:True, "ocr_processing.%s.filename" %tag:{"$ne": [] }, "nlp_processing.%s" % tag: {"$exists": False}}
     elif type == "fonttype":
-        query = { "cuneiform_processing.%s.harvested" % tag:True, "fonttype_processing.%s" % tag: {"$exists": False}}
+        query = { "cuneiform_processing.%s.harvested" % tag:True, "cuneiform_processing.%s.filename" % tag:{"$ne": []}, "fonttype_processing.%s" % tag: {"$exists": False}}
 
     articles_list = articles.find(query).limit(args.limit)
     for article in articles_list:
@@ -97,7 +106,7 @@ if __name__ == '__main__':
     elif type == "nlp":
         shutil.copytree("./NLPshared",submit_dir+"/shared/")
         print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
-        print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=\"%s\"_out_NLP --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)
+        print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=%s_out_NLP --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)
     elif type == "fonttype":
         shutil.copytree("./fontshared",submit_dir+"/shared/")
         print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
