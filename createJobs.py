@@ -29,7 +29,6 @@ def createSymlinks(files, submit_dir, count, type):
     # then, gather all the files + processings
     if not os.path.exists(submit_dir+"/job%06d/" % count ):
         os.makedirs(submit_dir+"/job%06d/" % count)
-    # todo: make filepath_mapping pickle
     if len(files) > 1 and (type == "ocr" or type=="cuneiform"):
         print "Warning! Exepcted only one input file, but found %s!" % len(files)
     for file in files:
@@ -59,7 +58,6 @@ def remote_submit(submit_dir, base_dir, cmdtorun, pargs):
     submit_string += "--pattern=*.html --type=other; "
     submit_string += "cd %s_out; " % submit_dir
     submit_string += "condor_submit_dag mydag.dag"
-    pdb.set_trace()
     subprocess.call(["ssh","iaross@deepdivesubmit.chtc.wisc.edu",
         "cd %s; %s" % (base_dir, submit_string)])
     # return success/fail
@@ -84,7 +82,7 @@ if __name__ == '__main__':
     tag = args.tag
     remote = args.remote
 
-    # todo: automatic naming of submit_dir
+    # automatic naming of submit_dir
     if args.dir:
         submit_dir = args.dir
     else:
