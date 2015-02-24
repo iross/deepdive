@@ -259,7 +259,6 @@ if __name__ == '__main__':
     harvest_user = config.get('database','harvest_user')
     harvest_password = config.get('database','harvest_password')
     uri = "mongodb://%s:%s@deepdivesubmit.chtc.wisc.edu:27017/?authMechanism=MONGODB-CR" % (harvest_user, harvest_password)
-    pdb.set_trace()
     client = pymongo.MongoClient(uri)
     articlesdb = client.articles
     articles = articlesdb.articles
