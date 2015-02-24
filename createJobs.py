@@ -80,9 +80,7 @@ def local_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
 
     """
     subprocess.call(["cp", "-r", submit_dir, base_dir])
-    print submit_dir
     submit_dir = os.path.basename(submit_dir)
-    print submit_dir
 
     submit_string = "./mkdag --cmdtorun=%s " % cmdtorun
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
@@ -186,15 +184,16 @@ if __name__ == '__main__':
             print "./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg=\"--cuneiform\" --parg=\"--no-tesseract\" --data=%s --output=%s_out --pattern=*.html --type=other" % (submit_dir, submit_dir)
         # run a mkdag, condor_submit_dag
     elif type == "nlp":
-        shutil.copytree("./NLPshared",submit_dir+"/shared/")
+        shutil.copytree(BASE+"NLPshared",submit_dir+"/shared/")
         if remote:
             pargs=[]
             remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
         else:
             # copy stuff around
+            pargs=[]
             local_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
     elif type == "fonttype":
-        shutil.copytree("./fontshared",submit_dir+"/shared/")
+        shutil.copytree(BASE+"fontshared",submit_dir+"/shared/")
         if remote:
             pargs=[]
             remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
