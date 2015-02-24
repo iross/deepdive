@@ -6,7 +6,6 @@ import argparse
 import ConfigParser
 import urllib
 import datetime
-import pdb
 
 BASE = "/home/iaross/DeepDive/deepdive/"
 
@@ -119,7 +118,7 @@ if __name__ == '__main__':
     else:
         now = datetime.datetime.now()
         today = now.strftime("%d%b")
-        extra = "_auto_test"
+        extra = ""
         if type == "cuneiform":
             extra+="_cune"
         elif type == "nlp":
