@@ -6,7 +6,6 @@ import argparse
 import ConfigParser
 import urllib
 import datetime
-import pdb
 
 BASE = "/home/iross/DeepDiveEnv/DeepDive/deepdive/"
 
@@ -120,7 +119,7 @@ if __name__ == '__main__':
     else:
         now = datetime.datetime.now()
         today = now.strftime("%d%b")
-        extra = "_auto_test"
+        extra = ""
         if type == "cuneiform":
             extra+="_cune"
         elif type == "nlp":
@@ -185,15 +184,16 @@ if __name__ == '__main__':
             print "./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg=\"--cuneiform\" --parg=\"--no-tesseract\" --data=%s --output=%s_out --pattern=*.html --type=other" % (submit_dir, submit_dir)
         # run a mkdag, condor_submit_dag
     elif type == "nlp":
-        shutil.copytree("./NLPshared",submit_dir+"/shared/")
+        shutil.copytree(BASE+"NLPshared",submit_dir+"/shared/")
         if remote:
             pargs=[]
             remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
         else:
             # copy stuff around
+            pargs=[]
             local_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
     elif type == "fonttype":
-        shutil.copytree("./fontshared",submit_dir+"/shared/")
+        shutil.copytree(BASE+"fontshared",submit_dir+"/shared/")
         if remote:
             pargs=[]
             remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
