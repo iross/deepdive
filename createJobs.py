@@ -121,13 +121,15 @@ if __name__ == '__main__':
     else:
         now = datetime.datetime.now()
         today = now.strftime("%d%b")
-        extra = "_remote_test"
+        extra = "_auto_test"
         if type == "cuneiform":
-            extra="_cune"
+            extra+="_cune"
         elif type == "nlp":
-            extra="_NLP"
+            extra+="_NLP"
         elif type == "fonttype":
-            extra="_FontType"
+            extra+="_FontType"
+        else:
+            extra+=""
         submit_dir = "submit_%s%s" % (today, extra)
         submit_dir = BASE + submit_dir
     if os.path.exists(submit_dir):
