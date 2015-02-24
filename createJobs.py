@@ -8,8 +8,10 @@ import urllib
 import datetime
 import pdb
 
+BASE = "/home/iaross/DeepDive/deepdive/"
+
 config = ConfigParser.RawConfigParser()
-config.read('/home/iross/DeepDiveEnv/DeepDive/deepdive/db_conn.cfg')
+config.read(BASE+'db_conn.cfg')
 
 reader_user = config.get('database', 'reader_user')
 reader_password = config.get('database', 'reader_password')
@@ -19,6 +21,12 @@ uri = "mongodb://%s:%s@deepdivesubmit.chtc.wisc.edu/?authMechanism=MONGODB-CR" %
 client = pymongo.MongoClient(uri)
 articlesdb = client.articles
 articles = articlesdb.articles
+
+OUTPUT_MAP = { "ocr": "_out",
+              "nlp": "_out_NLP",
+              "cuneiform": "_out",
+              "fonttype": "_out_FontType",
+              }
 
 def createSymlinks(files, submit_dir, count, type):
     """
@@ -43,7 +51,7 @@ def createSymlinks(files, submit_dir, count, type):
                 continue
     return 0
 
-def remote_submit(submit_dir, base_dir, cmdtorun, pargs):
+def remote_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
     """TODO: Docstring for remote_submit.
 
     :submit_dir: TODO
@@ -55,12 +63,35 @@ def remote_submit(submit_dir, base_dir, cmdtorun, pargs):
 
     submit_string = "cd %s; ./mkdag --cmdtorun=%s " % (base_dir, cmdtorun)
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
-    submit_string += "--data=%s --outputdir=%s_out " % (submit_dir, submit_dir)
-    submit_string += "--pattern=*.html --type=other; "
+    submit_string += "--data=%s --outputdir=%s%s " % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
+    submit_string += "--pattern=%s --type=other; " % pattern
     submit_string += "cd %s_out; " % submit_dir
     submit_string += "condor_submit_dag mydag.dag"
     subprocess.call(["ssh","iaross@deepdivesubmit.chtc.wisc.edu",
         "cd %s; %s" % (base_dir, submit_string)])
+    # todo: return success/fail?
+
+def local_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
+    """TODO: Docstring for remote_submit.
+
+    :submit_dir: TODO
+    :base_dir: TODO
+    :returns: TODO
+
+    """
+    subprocess.call(["cp", "-r", submit_dir, base_dir])
+    print submit_dir
+    submit_dir = os.path.basename(submit_dir)
+    print submit_dir
+
+    submit_string = "./mkdag --cmdtorun=%s " % cmdtorun
+    submit_string += "".join("--parg=%s " % arg for arg in pargs)
+    submit_string += "--data=%s --outputdir=%s%s " % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
+    submit_string += "--pattern=%s --type=other; " % pattern
+    submit_string += "cd %s%s; " % (submit_dir, OUTPUT_MAP[proctype])
+    submit_string += "condor_submit_dag mydag.dag"
+    os.chdir(base_dir)
+    subprocess.call(submit_string, shell=True)
     # todo: return success/fail?
 
 if __name__ == '__main__':
@@ -86,7 +117,7 @@ if __name__ == '__main__':
     # automatic naming of submit_dir
     if args.dir:
         submit_dir = args.dir
-        submit_dir = "/home/iross/DeepDiveEnv/DeepDive/deepdive/" + submit_dir
+        submit_dir = BASE + submit_dir
     else:
         now = datetime.datetime.now()
         today = now.strftime("%d%b")
@@ -98,9 +129,9 @@ if __name__ == '__main__':
         elif type == "fonttype":
             extra="_FontType"
         submit_dir = "submit_%s%s" % (today, extra)
-        submit_dir = "/home/iross/DeepDiveEnv/DeepDive/deepdive/" + submit_dir
+        submit_dir = BASE + submit_dir
     if os.path.exists(submit_dir):
-        submit_dir = "submit_2_%s%s" % (today, extra)
+        submit_dir = BASE + "submit_2_%s%s" % (today, extra)
     os.mkdir(submit_dir)
     # look for articles that match a query
     count = 1
@@ -139,16 +170,15 @@ if __name__ == '__main__':
     with open(submit_dir+"/filepath_mapping.pickle","wb") as f:
         pickle.dump(filepath_mapping, f )
     if type == "ocr" or type=="cuneiform":
-        shutil.copytree("/home/iross/DeepDiveEnv/DeepDive/deepdive/shared",submit_dir+"/shared/")
+        shutil.copytree(BASE+"shared",submit_dir+"/shared/")
         if remote:
             # todo: don't hardcode these paths
-            # scp directory over
             if type=="ocr":
                 pargs=["input.pdf", "--tesseract","--no-cuneiform"]
-                remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "ocr_pdf.py", pargs)
+                remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "ocr_pdf.py", pargs, "*.html", type)
             elif type=="cuneiform":
                 pargs=["input.pdf", "--no-tesseract","--cuneiform"]
-                remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "ocr_pdf.py", pargs)
+                remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "ocr_pdf.py", pargs, "*.html", type)
         else:
             print "Submit directories prepared! Use mkdag to create the DAGs, passing relevant runtime arguments. e.g.:"
             print "./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg=\"--cuneiform\" --parg=\"--no-tesseract\" --data=%s --output=%s_out --pattern=*.html --type=other" % (submit_dir, submit_dir)
@@ -156,15 +186,19 @@ if __name__ == '__main__':
     elif type == "nlp":
         shutil.copytree("./NLPshared",submit_dir+"/shared/")
         if remote:
-            subprocess.call(["scp", "-r", submit_dir, "iaross@deepdivesubmit.chtc.wisc.edu:/home/iaross/%s/ChtcRun/" % tag])
-            # todo: remote submit of NLP/OCR
+            pargs=[]
+            remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
         else:
-            print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
-            print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=%s_out_NLP --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)
+            # copy stuff around
+            local_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
     elif type == "fonttype":
         shutil.copytree("./fontshared",submit_dir+"/shared/")
         if remote:
-            subprocess.call(["scp", "-r", submit_dir, "iaross@deepdivesubmit.chtc.wisc.edu:/home/iaross/%s_cuneiform/ChtcRun/" % tag])
+            pargs=[]
+            remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
         else:
-            print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
-            print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=%s_out_FontType --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)
+            # copy stuff around
+            pargs=[]
+            local_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
+#            print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
+#            print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=%s_out_FontType --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)
