@@ -8,7 +8,7 @@ import urllib
 import datetime
 import pdb
 
-BASE = "/home/iaross/DeepDive/deepdive/"
+BASE = "/home/iross/DeepDiveEnv/DeepDive/deepdive/"
 
 config = ConfigParser.RawConfigParser()
 config.read(BASE+'db_conn.cfg')
@@ -60,6 +60,7 @@ def remote_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
 
     """
     subprocess.call(["scp", "-r", submit_dir, "iaross@deepdivesubmit.chtc.wisc.edu:%s" % base_dir])
+    submit_dir = os.path.basename(submit_dir)
 
     submit_string = "cd %s; ./mkdag --cmdtorun=%s " % (base_dir, cmdtorun)
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
@@ -80,9 +81,7 @@ def local_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
 
     """
     subprocess.call(["cp", "-r", submit_dir, base_dir])
-    print submit_dir
     submit_dir = os.path.basename(submit_dir)
-    print submit_dir
 
     submit_string = "./mkdag --cmdtorun=%s " % cmdtorun
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
