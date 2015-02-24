@@ -9,7 +9,7 @@ import datetime
 import pdb
 
 config = ConfigParser.RawConfigParser()
-config.read('db_conn.cfg')
+config.read('/home/iross/DeepDiveEnv/DeepDive/deepdive/db_conn.cfg')
 
 reader_user = config.get('database', 'reader_user')
 reader_password = config.get('database', 'reader_password')
@@ -60,7 +60,7 @@ def remote_submit(submit_dir, base_dir, cmdtorun, pargs):
     submit_string += "condor_submit_dag mydag.dag"
     subprocess.call(["ssh","iaross@deepdivesubmit.chtc.wisc.edu",
         "cd %s; %s" % (base_dir, submit_string)])
-    # return success/fail
+    # todo: return success/fail?
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
@@ -85,10 +85,11 @@ if __name__ == '__main__':
     # automatic naming of submit_dir
     if args.dir:
         submit_dir = args.dir
+        submit_dir = "/home/iross/DeepDiveEnv/DeepDive/deepdive/" + submit_dir
     else:
         now = datetime.datetime.now()
         today = now.strftime("%d%b")
-        extra = ""
+        extra = "_remote_test"
         if type == "cuneiform":
             extra="_cune"
         elif type == "nlp":
@@ -96,8 +97,9 @@ if __name__ == '__main__':
         elif type == "fonttype":
             extra="_FontType"
         submit_dir = "submit_%s%s" % (today, extra)
+        submit_dir = "/home/iross/DeepDiveEnv/DeepDive/deepdive/" + submit_dir
     if os.path.exists(submit_dir):
-        shutil.rmtree(submit_dir)
+        submit_dir = "submit_2_%s%s" % (today, extra)
     os.mkdir(submit_dir)
     # look for articles that match a query
     count = 1
@@ -137,7 +139,7 @@ if __name__ == '__main__':
     with open(submit_dir+"/filepath_mapping.pickle","wb") as f:
         pickle.dump(filepath_mapping, f )
     if type == "ocr" or type=="cuneiform":
-        shutil.copytree("./shared",submit_dir+"/shared/")
+        shutil.copytree("/home/iross/DeepDiveEnv/DeepDive/deepdive/shared",submit_dir+"/shared/")
         if remote:
             # todo: don't hardcode these paths
             # scp directory over
