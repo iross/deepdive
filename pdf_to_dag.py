@@ -30,7 +30,7 @@
 import os
 import pickle
 
-def get_job_directory(input_path, output_path):
+def get_job_directory(input_path, output_path, maxjobs):
     """
     Crawls through input_directory, and creates a output_path/jobxxxxx/
     directory with a renamed copy of any pdf/tif found.
@@ -42,6 +42,7 @@ def get_job_directory(input_path, output_path):
     """
     info = {}
     count = 0
+    batches = 0
     for root, dirs, files in os.walk(input_path):
         fileinfos = {}
         for f in files:
@@ -65,25 +66,39 @@ def get_job_directory(input_path, output_path):
                 except os.error, e:
                     print "Fail to create symbol link %s towards %s" % (link_name, filepath)
                     raise e
+                if (count >= maxjobs):
+                    try:
+                        f = open(os.path.join(output_path, "filepath_mapping.pickle"), 'wb')
+                        pickle.dump(info, f)
+                        info={}
+                        f.close()
+                    except pickle.PickleError, e:
+                        print "WARNING: Fail to serialize original filepath information"
+                        raise e
+                    count = 0
+                    output_path = output_path.split("_"+str(batches))[0]
+                    batches += 1
+                    output_path = output_path + "_" + str(batches)
+    try:
+        f = open(os.path.join(output_path, "filepath_mapping.pickle"), 'wb')
+        pickle.dump(info, f)
+        f.close()
+    except pickle.PickleError, e:
+        print "WARNING: Fail to serialize original filepath information"
+        raise e
     return info
 
 
 def main(argv):
-    if len(argv) == 3 and os.path.isdir(argv[1]) and not os.path.exists(argv[2]):
-        info = get_job_directory(argv[1], argv[2])
-        try:
-            f = open(os.path.join(argv[2], "filepath_mapping.pickle"), 'wb')
-            pickle.dump(info, f)
-            f.close()
-        except pickle.PickleError, e:
-            print "WARNING: Fail to serialize original filepath information"
-            raise e
+    if len(argv) >= 3 and os.path.isdir(argv[1]) and not os.path.exists(argv[2]):
+        if len(argv) == 4:
+            maxjobs = int(argv[3])
         else:
-            print "Succeed!"
+            maxjobs = 10000
+        info = get_job_directory(argv[1], argv[2], maxjobs)
     else:
         print "Please indicate existed input path and non-existed output directory!"
         sys.exit(1)
-
 
 if __name__ == '__main__':
     import sys
