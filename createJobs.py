@@ -130,8 +130,10 @@ if __name__ == '__main__':
             extra+=""
         submit_dir = "submit_%s%s" % (today, extra)
         submit_dir = BASE + submit_dir
-    if os.path.exists(submit_dir):
-        submit_dir = BASE + "submit_2_%s%s" % (today, extra)
+    sub_count = 0
+    while os.path.exists(submit_dir):
+        sub_count += 1
+        submit_dir = BASE + "submit_%s_%s%s" % (sub_count, today, extra)
     os.mkdir(submit_dir)
     # look for articles that match a query
     count = 1
