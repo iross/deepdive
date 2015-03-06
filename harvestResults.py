@@ -3,10 +3,12 @@
 
 import pickle
 import pymongo
+import ConfigParser
 import glob
 import os,sys
 import argparse
 from datetime import datetime
+import time
 import pprint
 import pdb
 
@@ -14,9 +16,9 @@ DEBUG=False
 VERBOSE=False
 
 STRIP_MAP = { "ocr": "_out",
-              "nlp": "_NLP_out_NLP",
+              "nlp": "_out_NLP",
               "cuneiform": "_out",
-              "fonttype": "_FontType_out_FontType",
+              "fonttype": "_out_FontType",
               }
 
 PATTERN_MAP = {"ocr": "*.html",
@@ -24,6 +26,10 @@ PATTERN_MAP = {"ocr": "*.html",
                 "cuneiform": "*.html",
                 "fonttype": "*.text",
                 }
+
+
+BASE = "/home/iaross/DeepDive/deepdive/"
+
 
 def cleanPath(path):
     """
@@ -176,17 +182,17 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
             if DEBUG:
                 print "The information for this job has already been added to the DB!"
             if not update: # if UPDATE flag isn't used, move to the next job
-                return 1,False
+                return 2,False
     except KeyError:
         pass
 
     tempReport = readLog(jobpath)
     if tempReport is None:
-        return 1,False
+        return 3,False
     try:
         tempReport["runTime"]
     except KeyError: # no runTime reported -- probably still running
-        return 1,False
+        return 4,False
 
     tempReport["pubname"] = match["pubname"]
     tempReport["URL"] = match["URL"]
@@ -211,6 +217,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         temp["filename"].append(file)
 #            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
     temp["harvested"] = True #indicate that this article+tag combination has been handled
+    temp["success"] = tempReport["success"]
     match["%s_processing" % proctype] = { tag: temp }
 
     # this will re-add the job reports if they're already in the db, since we're just pushing to a list
@@ -223,35 +230,16 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         print "And this would be the new article document: "
         ppr.pprint(match)
     else:
-        if update == True:
-            # we want to update the processings collection,
-            # in case jobs have migrated from "fail" to "success"
-            # to do this, we need to grab the old job list and update it, rather than
-            # pushing the job
-            jobs_list = processingsColl.find_one( { "tag": tag } )["jobs"]
-            jobs_list = [tempReport if job["URL"] == tempReport["URL"] else job for job in jobs_list]
-            processingsColl.update({ "tag": tag}, {"$set": {"jobs": jobs_list}} )
-            if tempReport["success"]: # adjust time from failure to success
-                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
-                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
-                processingsColl.update({ "tag": tag },
-                        {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : -1 } }, upsert = True)
-                processingsColl.update({ "tag": tag },
-                        {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: -tempReport["runTime"]} } , upsert = True)
+        if tempReport["success"]:
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
+            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
         else:
-#            processingsColl.update( { "tag": tag }, { "$push": { "jobs" : tempReport } }, upsert=True )
-            # update publication tallies, if the article changed state
-            if tempReport["success"]:
-                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
-                processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
-            else:
-                processingsColl.update({ "tag": tag },
-                        {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
-                processingsColl.update({ "tag": tag },
-                        {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
+            processingsColl.update({ "tag": tag },
+                    {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
+            processingsColl.update({ "tag": tag },
+                    {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
 
         articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False )
-
 
     # todo: clean up all other stuff in the output directories?
     return 0, tempReport["success"]
@@ -266,11 +254,17 @@ if __name__ == '__main__':
     parser.add_argument('--update', type=bool, required=False, default=False, help="Force update to the database.")
     args = parser.parse_args()
 
-    client = pymongo.MongoClient()
-    articlesdb = client.articles_dev
+    config = ConfigParser.RawConfigParser()
+    config.read(BASE+'db_conn.cfg')
+    harvest_user = config.get('database','harvest_user')
+    harvest_password = config.get('database','harvest_password')
+    uri = "mongodb://%s:%s@deepdivesubmit.chtc.wisc.edu:27017/?authMechanism=MONGODB-CR" % (harvest_user, harvest_password)
+    pdb.set_trace()
+    client = pymongo.MongoClient(uri)
+    articlesdb = client.articles
     articles = articlesdb.articles
 
-    procdb = client.processing_dev
+    procdb = client.processing
 
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
@@ -278,6 +272,8 @@ if __name__ == '__main__':
     basedir = os.path.abspath(args.basedir)
     output_dirs = glob.glob(basedir + "/*out*/")
     for output_dir in output_dirs:
+        if (time.time() - os.path.getmtime(output_dir) > 172800):
+            continue
         if "NLP" in output_dir:
             proctype = "nlp"
             processings = procdb["nlp_processing"]
@@ -291,7 +287,11 @@ if __name__ == '__main__':
             proctype = "ocr"
             processings = procdb["ocr_processing"]
         submit_dir = output_dir.replace(STRIP_MAP[proctype], "" )
-        filepath_map = pickle.load(open(submit_dir + "/filepath_mapping.pickle"))
+        try:
+            filepath_map = pickle.load(open(submit_dir + "/filepath_mapping.pickle"))
+        except IOError:
+            print "No filepath_mapping.pickle found in %s" % submit_dir
+            continue
         joblist = glob.glob(output_dir + "/job*/")
 
         try:
