@@ -14,4 +14,4 @@ python ../deepdive/pdf_to_dag.py "$filepath$journal" "$journal_clean"$tag
 cp -r shared "$journal_clean""$tag"
 
 echo "Submit directories prepared! Use mkdag to create the DAGs, passing relevant runtime arguments. e.g.:"
-echo ./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg="--cuneiform" --parg="--tesseract" --data=$journal_clean$tag --outputdir="$journal_clean""$tag"_out --pattern=*.html --type=other                                                                                 
+./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg="--no-cuneiform" --parg="--tesseract" --data=$journal_clean$tag --outputdir="$journal_clean""$tag"_out --pattern=*.html --type=other                                                                                 
