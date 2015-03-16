@@ -83,9 +83,8 @@ def get_job_directory(input_path, output_path, maxjobs):
         f = open(os.path.join(output_path, "filepath_mapping.pickle"), 'wb')
         pickle.dump(info, f)
         f.close()
-    except pickle.PickleError, e:
+    except:
         print "WARNING: Fail to serialize original filepath information"
-        raise e
     return info
 
 
