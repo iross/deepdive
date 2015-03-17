@@ -27,4 +27,4 @@ cp $journal_clean/filepath_mapping.pickle $journal_new/
 cp -r NLPshared $journal_new
 mv $journal_new/NLPshared $journal_new/shared
 echo "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
-echo ./mkdag --cmdtorun=do.sh --data=$journal_new --outputdir="$journal_new"_out_NLP --pattern=SUCCEED.txt --type=other                                                                                 
+./mkdag --cmdtorun=do.sh --data=$journal_new --outputdir="$journal_new"_out_NLP --pattern=SUCCEED.txt --type=other                                                                                 
