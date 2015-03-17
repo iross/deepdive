@@ -7,7 +7,7 @@ import ConfigParser
 import urllib
 import datetime
 
-BASE = "/home/iross/DeepDiveEnv/DeepDive/deepdive/"
+BASE = "/home/iaross/DeepDive/deepdive/"
 
 config = ConfigParser.RawConfigParser()
 config.read(BASE+'db_conn.cfg')
