@@ -135,11 +135,11 @@ class OcrPdf(object):
                 self.stderr.close()
             raise e
 
-        shutil.rmtree('tmp', True)
+        shutil.rmtree('ocr_tmp', True)
         try:
-            os.mkdir('tmp')
+            os.mkdir('ocr_tmp')
         except OSError as e:
-            print "ERROR\tCreate tmp folder"
+            print "ERROR\tCreate ocr_tmp folder"
             raise e
 
         if self.output_folder_path and not os.path.isdir(self.output_folder_path):
@@ -150,7 +150,7 @@ class OcrPdf(object):
                 raise e
 
     def __del__(self):
-        shutil.rmtree('tmp', True)
+        shutil.rmtree('ocr_tmp', True)
 
     def call(self, cmd, check=True):
         return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
@@ -165,11 +165,11 @@ class OcrPdf(object):
         unzip("ocr2.zip", func=self.call)
         unzip("cuneiform.zip", func=self.call)
         if self.tesseract:
-            print pdf_to_png(output_file, tmp_folder='tmp', func=self.call)
-            print tesseract('tmp', self.output_folder_path, self.call)
+            print pdf_to_png(output_file, tmp_folder='ocr_tmp', func=self.call)
+            print tesseract('ocr_tmp', self.output_folder_path, self.call)
         if self.cuneiform:
-            print pdf_to_bmp(output_file, tmp_folder='tmp', func=self.call)
-            print cuneiform('tmp', self.output_folder_path, self.call)
+            print pdf_to_bmp(output_file, tmp_folder='ocr_tmp', func=self.call)
+            print cuneiform('ocr_tmp', self.output_folder_path, self.call)
 
     def tiffs_to_htmls(self, tiff_folder_path):
         """
