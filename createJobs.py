@@ -65,6 +65,7 @@ def remote_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
     submit_string += "--data=%s --outputdir=%s%s " % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
     submit_string += "--pattern=%s --type=other; " % pattern
+    submit_string += "cp %s/filepath_mapping.pickle %s_out;" % (submit_dir, submit_dir)
     submit_string += "cd %s_out; " % submit_dir
     submit_string += "condor_submit_dag mydag.dag"
     subprocess.call(["ssh","iaross@deepdivesubmit.chtc.wisc.edu",
@@ -86,6 +87,7 @@ def local_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
     submit_string += "--data=%s --outputdir=%s%s " % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
     submit_string += "--pattern=%s --type=other; " % pattern
+    submit_string += "cp %s/filepath_mapping.pickle %s%s;" % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
     submit_string += "cd %s%s; " % (submit_dir, OUTPUT_MAP[proctype])
     submit_string += "condor_submit_dag mydag.dag"
     os.chdir(base_dir)
