@@ -179,6 +179,9 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         return 1,False
     try:  # if this article + tag have already been harvested, then skip
         if match["%s_processing" % proctype][tag]["harvested"]:
+            # TODO: if it was not a success, we may want to update it
+            # BUT this is tricky. What to do with the cputime + overall counts? Replace? Add?
+            # What about triggering total counts on "proctype.tag.success"? (would have to update older harvests)
             if DEBUG:
                 print "The information for this job has already been added to the DB!"
             if not update: # if UPDATE flag isn't used, move to the next job
@@ -271,8 +274,9 @@ if __name__ == '__main__':
     basedir = os.path.abspath(args.basedir)
     output_dirs = glob.glob(basedir + "/*out*/")
     for output_dir in output_dirs:
-        if (time.time() - os.path.getmtime(output_dir) > 172800):
+        if (time.time() - os.path.getmtime(output_dir) > 172800): # skip if the modified time is older than 48 hours
             continue
+        # TODO: better proctype detection
         if "NLP" in output_dir:
             proctype = "nlp"
             processings = procdb["nlp_processing"]
