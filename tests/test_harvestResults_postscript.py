@@ -145,3 +145,39 @@ class TestDownloadManager(unittest.TestCase):
         print ret
         print exp
         self.assertTrue(ret == exp)
+
+    def test_failed_job(self):
+        # should write 1 to RESULT
+        # should write cpu/fail stats
+        # should write article processing info
+        self.assertTrue(True)
+
+    def test_success_job(self):
+        # should write 0 to RESULT
+        # should write cpu/success stats
+        # should write article processing info
+        self.assertTrue(True)
+
+    def test_fail_to_succeed_transition(self):
+        # should add to cpu/success stats
+        # should update article processing info
+        self.assertTrue(True)
+
+    def test_pattern_matching(self):
+        # should be able to match arbitrary output patterns to job types
+        # or should look for patterns based on job types?
+        files = patternMatch('page*.hocr.html', os.getcwd()+'/tests/job000001/')
+        base_files = ["page-1.hocr.html", "page-2.hocr.html", "page-3.hocr.html",\
+                "page-4.hocr.html", "page-5.hocr.html", "page-6.hocr.html"]
+        base_files = [os.getcwd() + '/tests/job000001/' + i for i in base_files]
+        self.assertTrue(base_files == files, msg="Returned list doesn't match expected! %s vs %s" % (str(base_files), str(files)))
+
+    def test_ocr_nlp_compound_job(self):
+        # should be able to parse OCR+NLP combo
+        self.assertTrue(True)
+    def test_cuneiform_fonttype_job(self):
+        # should be able to parse cuneiform+fonttype combo
+        self.assertTrue(True)
+    def test_compound_job(self):
+        # should be able to parse ocr+nlp+cuneiform+fonttype combo
+        self.assertTrue(True)

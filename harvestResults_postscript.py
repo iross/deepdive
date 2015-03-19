@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
 """
 File: harvestResults_postscript.py
 Author: Ian Ross
@@ -14,8 +17,6 @@ Description:
         Overall cleanup
 """
 
-#!/usr/bin/env python
-# encoding: utf-8
 
 import cPickle as pickle
 import pymongo
@@ -26,6 +27,7 @@ import argparse
 from datetime import datetime
 import time
 import pprint
+import re
 import pdb
 
 DEBUG=False
@@ -46,6 +48,17 @@ PATTERN_MAP = {"ocr": "*.html",
 
 BASE = "/home/iaross/DeepDive/deepdive/"
 
+def patternMatch(pattern, dir='./'):
+    """
+    Returns list of files matching the desired input. Matches via regex.
+
+    :pattern: TODO
+    :returns: TODO
+
+    """
+    files = []
+    files = glob.glob(dir+pattern)
+    return files
 
 def cleanPath(path):
     """
@@ -182,12 +195,25 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
 
     """
 
+    # new stuff
+    # need to check for patterns
+    # if found, write + write RESULT
+    # otherwise, write RESULT 1 and sysexit(1)
+    # load the jobs config, look for patterns
+    # will need to set tempReport["success"]
+
+    # we have output, have we processed this article using this proctype+tag before?
+
+    # match against the articles collection in the DB
     if not jobpath.endswith("/"): #ensure we have a trailing /
         jobpath = jobpath + "/"
     jobid = jobpath.split("/")[-2]
-
-    # match against the articles collection in the DB
     match = getMatch(jobid, articlesColl, filepath_map)
+
+    files = patternMatch(file_pattern, jobpath)
+    if files == []: # no matching output. May be overall fail, may have just not run this proctype
+        return 1,False
+
     if match is None:
         if VERBOSE:
             print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
@@ -202,6 +228,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     except KeyError:
         pass
 
+    # read log file
     tempReport = readLog(jobpath)
     if tempReport is None:
         return 3,False
@@ -213,6 +240,9 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     tempReport["pubname"] = match["pubname"]
     tempReport["URL"] = match["URL"]
 
+
+    # old stuff
+    """
     try:
         with open(jobpath + "/RESULT") as file:
             for line in file:
@@ -222,20 +252,19 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
                     tempReport["success"] = False
     except IOError:
         tempReport["success"] = False
+    """
+    # end old stuff
 
     # get all files associated with the job
     temp = {}
-    temp["filename"] = []
+    temp["filename"] = files
     temp["contents"] = []
 
-    list = glob.glob(jobpath+"/" + file_pattern)
-    for file in list:
-        temp["filename"].append(file)
-#            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
     temp["harvested"] = True #indicate that this article+tag combination has been handled
-    temp["success"] = tempReport["success"]
+    temp["success"] = True # we found files, so it's a success!
     match["%s_processing" % proctype] = { tag: temp }
 
+    # db updates
     # this will re-add the job reports if they're already in the db, since we're just pushing to a list
     # can probably make an index on "path" and check against it.
     if dryrun:
@@ -246,7 +275,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         print "And this would be the new article document: "
         ppr.pprint(match)
     else:
-        if tempReport["success"]:
+        if temp["success"]:
             processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
             processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
         else:
@@ -258,7 +287,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
         articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False )
 
     # todo: clean up all other stuff in the output directories?
-    return 0, tempReport["success"]
+    return 0, temp["success"]
 
 
 if __name__ == '__main__':
@@ -276,59 +305,41 @@ if __name__ == '__main__':
     harvest_password = config.get('database','harvest_password')
     uri = "mongodb://%s:%s@deepdivesubmit.chtc.wisc.edu:27017/?authMechanism=MONGODB-CR" % (harvest_user, harvest_password)
     client = pymongo.MongoClient(uri)
-    articlesdb = client.articles
+    articlesdb = client.articles_harvesting_overhaul
     articles = articlesdb.articles
 
-    procdb = client.processing
+    procdb = client.processing_dev
 
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
 
-    basedir = os.path.abspath(args.basedir)
-    output_dirs = glob.glob(basedir + "/*out*/")
-    for output_dir in output_dirs:
-        if (time.time() - os.path.getmtime(output_dir) > 172800):
-            continue
-        print "Processing %s" % output_dir
-        if "NLP" in output_dir:
-            proctype = "nlp"
-            processings = procdb["nlp_processing"]
-        elif "FontType" in output_dir:
-            proctype = "fonttype"
-            processings = procdb["fonttype_processing"]
-        elif "cuneiform" in output_dir: # will have to do something else in tesseract+cuneiform combined runs
-            proctype = "cuneiform"
-            processings = procdb["cuneiform_processing"]
+    # NEW METHOD
+    # Should be getting run in output/job0000001
+    # get filepath_mapping.pickle from output
+    try:
+        filepath_map = pickle.load(open("../filepath_mapping.pickle"))
+    except IOError:
+        print "No filepath mapping found! Cannot determine what article this job belongs to! Exiting!"
+        sys.exit(1)
+    jobpath = os.getcwd()
+    check = None
+    jobSuccess = None
+    job_config = ConfigParser.RawConfigParser()
+    job_config.read(BASE+'jobs.cfg')
+    overall_success = False
+    for proctype in job_config.sections():
+        pattern = job_config.get(proctype, 'pattern')
+        processings = procdb["%s_processing" % proctype]
+        check,jobSuccess = processJob(jobpath, args.tag, proctype, articles, processings, filepath_map, pattern, args.dryrun, args.update)
+        print proctype
+        print check,jobSuccess
+        if jobSuccess:
+            overall_success = True
+    # move log reading stuff out here? TODO: How to categorize failures?
+    with open("RESULT","w") as fout:
+        if overall_success:
+            fout.write("0\n")
+            sys.exit(0)
         else:
-            proctype = "ocr"
-            processings = procdb["ocr_processing"]
-        submit_dir = output_dir.replace(STRIP_MAP[proctype], "" )
-        try:
-            filepath_map = pickle.load(open(submit_dir + "/filepath_mapping.pickle"))
-        except IOError:
-            print "No filepath_mapping.pickle found in %s" % submit_dir
-            continue
-        joblist = glob.glob(output_dir + "/job*/")
-
-        try:
-            processed = pickle.load(open(basedir+"/processed.pickle"))
-        except IOError:
-            processed = {}
-
-        for jobpath in joblist:
-            if jobpath in processed and not args.update:
-                continue
-            try:
-                if (time.time() - os.path.getmtime(jobpath+"/RESULT") > 172800*4): # short-circuit older files
-                    continue
-            except:
-                pass
-            check = None
-            jobSuccess = None
-            # todo: only want "update" to update the info for new jobs OR jobs that previously failed
-            check,jobSuccess = processJob(jobpath, args.tag, proctype, articles, processings, filepath_map, PATTERN_MAP[proctype], args.dryrun, args.update)
-            if (check == 0 and jobSuccess is not None): # only flagged as successful if the processJob was successful
-                processed[jobpath] = jobSuccess
-
-        if not args.dryrun:
-            pickle.dump(processed, open(basedir+"/processed.pickle","w"))
+            fout.write("1\n")
+            sys.exit(1)
