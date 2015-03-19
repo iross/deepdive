@@ -262,7 +262,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
 
     temp["harvested"] = True #indicate that this article+tag combination has been handled
     temp["success"] = True # we found files, so it's a success!
-    match["%s_processing" % proctype] = { tag: temp }
+    match["%s_processing" % proctype][tag] = temp
 
     # db updates
     # this will re-add the job reports if they're already in the db, since we're just pushing to a list
