@@ -1,1 +1,1 @@
-ocr_pdf.py
+../ocr_pdf.py
