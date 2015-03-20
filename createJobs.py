@@ -50,7 +50,7 @@ def createSymlinks(files, submit_dir, count, type):
                 continue
     return 0
 
-def remote_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
+def remote_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype, tag):
     """TODO: Docstring for remote_submit.
 
     :submit_dir: TODO
@@ -64,6 +64,8 @@ def remote_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
     submit_string = "cd %s; ./mkdag --cmdtorun=%s " % (base_dir, cmdtorun)
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
     submit_string += "--data=%s --outputdir=%s%s " % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
+    if "elsevier" not in tag:
+        submit_string+="--tag=%s " % tag
     submit_string += "--pattern=%s --type=other; " % pattern
     submit_string += "cp %s/filepath_mapping.pickle %s_out;" % (submit_dir, submit_dir)
     submit_string += "cd %s_out; " % submit_dir
@@ -72,7 +74,7 @@ def remote_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
         "cd %s; %s" % (base_dir, submit_string)])
     # todo: return success/fail?
 
-def local_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
+def local_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype, tag):
     """TODO: Docstring for remote_submit.
 
     :submit_dir: TODO
@@ -86,7 +88,9 @@ def local_submit(submit_dir, base_dir, cmdtorun, pargs, pattern, proctype):
     submit_string = "./mkdag --cmdtorun=%s " % cmdtorun
     submit_string += "".join("--parg=%s " % arg for arg in pargs)
     submit_string += "--data=%s --outputdir=%s%s " % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
-    submit_string += "--pattern=%s --type=other; " % pattern
+    if "elsevier" not in tag:
+        submit_string+="--tag=%s " % tag
+    submit_string += "--postscript=postTest.py --pattern=%s --type=other; " % pattern
     submit_string += "cp %s/filepath_mapping.pickle %s%s;" % (submit_dir, submit_dir, OUTPUT_MAP[proctype])
     submit_string += "cd %s%s; " % (submit_dir, OUTPUT_MAP[proctype])
     submit_string += "condor_submit_dag mydag.dag"
@@ -179,10 +183,10 @@ if __name__ == '__main__':
             # todo: don't hardcode these paths
             if type=="ocr":
                 pargs=["input.pdf", "--tesseract","--no-cuneiform"]
-                remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "ocr_pdf.py", pargs, "*.html", type)
+                remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "ocr_pdf.py", pargs, "*.html", type, tag)
             elif type=="cuneiform":
                 pargs=["input.pdf", "--no-tesseract","--cuneiform"]
-                remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "ocr_pdf.py", pargs, "*.html", type)
+                remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "ocr_pdf.py", pargs, "*.html", type, tag)
         else:
             print "Submit directories prepared! Use mkdag to create the DAGs, passing relevant runtime arguments. e.g.:"
             print "./mkdag --cmdtorun=ocr_pdf.py --parg=input.pdf --parg=\"--cuneiform\" --parg=\"--no-tesseract\" --data=%s --output=%s_out --pattern=*.html --type=other" % (submit_dir, submit_dir)
@@ -191,19 +195,19 @@ if __name__ == '__main__':
         shutil.copytree(BASE+"NLPshared",submit_dir+"/shared/")
         if remote:
             pargs=[]
-            remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
+            remote_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type, tag)
         else:
             # copy stuff around
             pargs=[]
-            local_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
+            local_submit(submit_dir, "/home/iaross/%s/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type, tag)
     elif type == "fonttype":
         shutil.copytree(BASE+"fontshared",submit_dir+"/shared/")
         if remote:
             pargs=[]
-            remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
+            remote_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type, tag)
         else:
             # copy stuff around
             pargs=[]
-            local_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type)
+            local_submit(submit_dir, "/home/iaross/%s_cuneiform/ChtcRun" % tag, "do.sh", pargs, "SUCCEED.txt", type, tag)
 #            print "Submit directories created from requested output! Use mkdag to create DAG files for submission. e.g.:"
 #            print "./mkdag --cmdtorun=do.sh --data=%s --outputdir=%s_out_FontType --pattern=SUCCEED.txt --type=other" % (submit_dir, submit_dir)

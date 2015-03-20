@@ -218,7 +218,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
 #            temp["contents"].append("<Placeholder for if we ever want to store the full contents.>")
     temp["harvested"] = True #indicate that this article+tag combination has been handled
     temp["success"] = tempReport["success"]
-    match["%s_processing" % proctype] = { tag: temp }
+    match["%s_processing" % proctype][tag] = temp
 
     # this will re-add the job reports if they're already in the db, since we're just pushing to a list
     # can probably make an index on "path" and check against it.
