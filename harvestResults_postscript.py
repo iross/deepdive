@@ -262,7 +262,7 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
 
     temp["harvested"] = True #indicate that this article+tag combination has been handled
     temp["success"] = True # we found files, so it's a success!
-    match["%s_processing" % proctype] = { tag: temp }
+    match["%s_processing" % proctype][tag] = temp
 
     # db updates
     # this will re-add the job reports if they're already in the db, since we're just pushing to a list
@@ -327,14 +327,16 @@ if __name__ == '__main__':
     job_config = ConfigParser.RawConfigParser()
     job_config.read(BASE+'jobs.cfg')
     overall_success = False
-    for proctype in job_config.sections():
-        pattern = job_config.get(proctype, 'pattern')
-        processings = procdb["%s_processing" % proctype]
-        check,jobSuccess = processJob(jobpath, args.tag, proctype, articles, processings, filepath_map, pattern, args.dryrun, args.update)
-        print proctype
-        print check,jobSuccess
-        if jobSuccess:
-            overall_success = True
+    with open("post.log","w") as fout:
+        fout.write('TAG: %s\n' % tag)
+        for proctype in job_config.sections():
+            pattern = job_config.get(proctype, 'pattern')
+            processings = procdb["%s_processing" % proctype]
+            check,jobSuccess = processJob(jobpath, args.tag, proctype, articles, processings, filepath_map, pattern, args.dryrun, args.update)
+            fout.write(proctype+"\n")
+            fout.write('\t%s -- %s\n' % (check, jobSuccess))
+            if jobSuccess:
+                overall_success = True
     # move log reading stuff out here? TODO: How to categorize failures?
     with open("RESULT","w") as fout:
         if overall_success:
