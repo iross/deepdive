@@ -75,6 +75,10 @@ def organize_htcondor_jobs(origin_input_folder,
             for type in ["tesseract", "cuneiform"]:
                 combined_output = "\"" + new_base + "%s_combined.pdf" % type + "\""
                 pdfstr = "%s/%s*.pdf" % (job_dir_path, type)
+                if not os.path.exists('./cde-package'):
+                    print "Missing the pdf-combining stuff! Attempting to install."
+                    subprocess.call('curl -O http://pages.cs.wisc.edu/~iross/pdftk.zip', shell=True )
+                    subprocess.call('unzip pdftk.zip', shell=True )
                 try:
                     subprocess.call('./cde-package/cde-exec pdftk %s cat output %s' % (pdfstr, combined_output), shell=True )
                 except:
