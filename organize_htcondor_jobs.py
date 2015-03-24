@@ -18,7 +18,7 @@ import re
 
 
 def organize_htcondor_jobs(origin_input_folder,
-        htcondor_input_folder, htcondor_output_folder, output_folder):
+        htcondor_input_folder, htcondor_output_folder, output_folder, combine_only):
     """Reorganize the processed ocr results into tree structure
 
     Args:
@@ -58,17 +58,18 @@ def organize_htcondor_jobs(origin_input_folder,
             if not os.path.exists(new_organized_path):
                 os.makedirs(new_organized_path)
 
-            for f in os.listdir(job_dir_path):
-                if f != "out.txt" and \
-                    (f.endswith('.txt') or f.endswith('.html') \
-                    or f.endswith('.pdf') or f.endswith('.hocr') ):
-                    f_new = re.sub('(_input.+?f)', '', f)
-                    shutil.copy(
-                        os.path.join(htcondor_output_folder, job_name, f),
-                        new_base + f_new)
-                if f.endswith('.pdf'):
-                    # separate cune/tess pdfs?
-                    job_dir_pdfs.append('./'+job_dir_path+'/'+f)
+            if not combine_only:
+                for f in os.listdir(job_dir_path):
+                    if f != "out.txt" and \
+                        (f.endswith('.txt') or f.endswith('.html') \
+                        or f.endswith('.pdf') or f.endswith('.hocr') ):
+                        f_new = re.sub('(_input.+?f)', '', f)
+                        shutil.copy(
+                            os.path.join(htcondor_output_folder, job_name, f),
+                            new_base + f_new)
+                    if f.endswith('.pdf'):
+                        # separate cune/tess pdfs?
+                        job_dir_pdfs.append('./'+job_dir_path+'/'+f)
 
             # smoosh multi-page PDFs into one PDF via gs:
             # gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=merged.pdf mine1.pdf mine2.pdf
@@ -94,16 +95,23 @@ def organize_htcondor_jobs(origin_input_folder,
 def main():
     """Main function only in command line"""
     from sys import argv
-    if len(argv) != 5:
+    if len(argv) < 5:
         print "Usage: python organize_htcondor_jobs"\
             "ORIGIN_FOLDER FOLDER_HOLDING_PICKLE"\
-            "FOLDER_HOLDING_OCR_RESULT OUTPUT"
+            "FOLDER_HOLDING_OCR_RESULT OUTPUT [COMBINE_ONLY]"
         print "e.g. python organize_htcondor_jobs.py "\
             "/home/iaross/merlin/toxic/uniroyal/ "\
             "/home/iaross/merlin_001/test_run/ChtcRun/uniroyal "\
-            "/home/iaross/merlin_001/test_run/ChtcRun/uniroyal_out/ myout"
+            "/home/iaross/merlin_001/test_run/ChtcRun/uniroyal_out/ myout True"
         return False
-    organize_htcondor_jobs(argv[1], argv[2], argv[3], argv[4])
+    if len(argv) == 5:
+        combine_only = False
+    else:
+        if argv[5] not in ["True", "False"]:
+            print "Invalid argument! Copying all files!"
+        combine_only = (argv[5] == 'True')
+
+    organize_htcondor_jobs(argv[1], argv[2], argv[3], argv[4], combine_only)
 
 
 
