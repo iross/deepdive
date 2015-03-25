@@ -240,21 +240,6 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     tempReport["pubname"] = match["pubname"]
     tempReport["URL"] = match["URL"]
 
-
-    # old stuff
-    """
-    try:
-        with open(jobpath + "/RESULT") as file:
-            for line in file:
-                if line.strip()=="0":
-                    tempReport["success"] = True
-                else:
-                    tempReport["success"] = False
-    except IOError:
-        tempReport["success"] = False
-    """
-    # end old stuff
-
     # get all files associated with the job
     temp = {}
     temp["filename"] = files
@@ -296,7 +281,7 @@ if __name__ == '__main__':
     parser.add_argument('--basedir', type=str, default=os.getcwd(), help="The base directory")
     parser.add_argument('--dryrun', type=bool, required=False, default=False, help="Don't actually write to the databases--only show\
             what would have been added/updated.")
-    parser.add_argument('--update', type=bool, required=False, default=False, help="Force update to the database.")
+    parser.add_argument('--update', type=bool, required=False, default=True, help="Force update to the database.")
     args = parser.parse_args()
 
     config = ConfigParser.RawConfigParser()
