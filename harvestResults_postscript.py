@@ -186,39 +186,16 @@ def readLog(jobpath):
             print "Couldn't find file at %s/process.log" % jobpath
         return None
 
-def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_map, file_pattern, dryrun=False, update=False):
+def processJob(match, jobpath, tag, proctype, articlesColl, filepath_map, file_pattern, dryrun=False, update=False):
     """
-    Only UNPROCESSED jobs or JOBS THAT WERE FAILURES AND NEED TO BE RE-CHECKED
-    should enter this function.
-
-    Otherwise, duplicates could enter the processing database
-
+    Take an article matched in the DB, its associated job path, and update the relevant article collections with files found.
     """
-
-    # new stuff
-    # need to check for patterns
-    # if found, write + write RESULT
-    # otherwise, write RESULT 1 and sysexit(1)
-    # load the jobs config, look for patterns
-    # will need to set tempReport["success"]
-
     # we have output, have we processed this article using this proctype+tag before?
-
-    # match against the articles collection in the DB
-    if not jobpath.endswith("/"): #ensure we have a trailing /
-        jobpath = jobpath + "/"
-    jobid = jobpath.split("/")[-2]
-    match = getMatch(jobid, articlesColl, filepath_map)
 
     files = patternMatch(file_pattern, jobpath)
     if files == []: # no matching output. May be overall fail, may have just not run this proctype
         return 1,False
 
-    if match is None:
-        if VERBOSE:
-            print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
-                ( jobid, filepath_map[jobid] )
-        return 1,False
     try:  # if this article + tag have already been harvested, then skip
         if match["%s_processing" % proctype][tag]["harvested"]:
             if DEBUG:
@@ -227,18 +204,6 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
                 return 2,False
     except KeyError:
         pass
-
-    # read log file
-    tempReport = readLog(jobpath)
-    if tempReport is None:
-        return 3,False
-    try:
-        tempReport["runTime"]
-    except KeyError: # no runTime reported -- probably still running
-        return 4,False
-
-    tempReport["pubname"] = match["pubname"]
-    tempReport["URL"] = match["URL"]
 
     # get all files associated with the job
     temp = {}
@@ -254,26 +219,31 @@ def processJob(jobpath, tag, proctype, articlesColl, processingsColl, filepath_m
     # can probably make an index on "path" and check against it.
     if dryrun:
         ppr = pprint.PrettyPrinter(indent=4)
-        print "This would have been pushed into %s.%s.jobs: " % (processingsColl.name, tag)
         ppr.pprint(tempReport)
 
         print "And this would be the new article document: "
         ppr.pprint(match)
     else:
-        if temp["success"]:
-            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
-            processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
-        else:
-            processingsColl.update({ "tag": tag },
-                    {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
-            processingsColl.update({ "tag": tag },
-                    {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
-
         articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False )
 
     # todo: clean up all other stuff in the output directories?
     return 0, temp["success"]
 
+def exit(success):
+    """
+    Exit. If success, write 0 to RESULT and quite with sys.exist(0). Otherwise, write 1 and use non-zero exit.
+
+    :success: TODO
+    :returns: TODO
+
+    """
+    with open("RESULT","w") as fout:
+        if success:
+            fout.write("0\n")
+            sys.exit(0)
+        else:
+            fout.write("1\n")
+            sys.exit(1)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Harvest some condor output')
@@ -298,15 +268,31 @@ if __name__ == '__main__':
     #technically, we can grab this from the path, based on how I'm structuring my job submission
     tag = args.tag
 
-    # NEW METHOD
+    processingsColl = procdb[tag]
+
     # Should be getting run in output/job0000001
     # get filepath_mapping.pickle from output
     try:
         filepath_map = pickle.load(open("../filepath_mapping.pickle"))
     except IOError:
         print "No filepath mapping found! Cannot determine what article this job belongs to! Exiting!"
-        sys.exit(1)
+        exit(False)
     jobpath = os.getcwd()
+
+    # ----- match article here
+    # match against the articles collection in the DB
+    if not jobpath.endswith("/"): #ensure we have a trailing /
+        jobpath = jobpath + "/"
+    jobid = jobpath.split("/")[-2]
+
+    match = getMatch(jobid, articles, filepath_map)
+
+    if match is None:
+        if VERBOSE:
+            print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
+                ( jobid, filepath_map[jobid] )
+        exit(False)
+
     check = None
     jobSuccess = None
     job_config = ConfigParser.RawConfigParser()
@@ -317,16 +303,35 @@ if __name__ == '__main__':
         for proctype in job_config.sections():
             pattern = job_config.get(proctype, 'pattern')
             processings = procdb["%s_processing" % proctype]
-            check,jobSuccess = processJob(jobpath, args.tag, proctype, articles, processings, filepath_map, pattern, args.dryrun, args.update)
+
+            check,jobSuccess = processJob(match, jobpath, args.tag, proctype, articles, filepath_map, pattern, args.dryrun, args.update)
             fout.write(proctype+"\n")
             fout.write('\t%s -- %s\n' % (check, jobSuccess))
             if jobSuccess:
                 overall_success = True
-    # move log reading stuff out here? TODO: How to categorize failures?
-    with open("RESULT","w") as fout:
+
+    # read log file
+    tempReport = readLog(jobpath)
+    if tempReport is None:
+        exit(False)
+    try:
+        tempReport["runTime"]
+    except KeyError: # no runTime reported -- probably still running
+        exit(False)
+
+    # need to grab the pubname from somewhere.
+    tempReport["pubname"] = match["pubname"]
+
+    if overall_success:
+        processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
+        processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
+    else:
+        processingsColl.update({ "tag": tag },
+                {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
+        processingsColl.update({ "tag": tag },
+                {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
+
         if overall_success:
-            fout.write("0\n")
-            sys.exit(0)
+            exit(True)
         else:
-            fout.write("1\n")
-            sys.exit(1)
+            exit(False)
