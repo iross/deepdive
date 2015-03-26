@@ -52,3 +52,7 @@ target/
 db_conn.cfg
 
 submit_*/
+
+*.0
+*.ns
+*.lock
