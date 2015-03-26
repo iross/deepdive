@@ -10,21 +10,39 @@ from bson.objectid import ObjectId
 def extractDictAFromB(A,B):
     return dict([(k,B[k]) for k in A.keys() if k in B.keys()])
 
-class TestDownloadManager(unittest.TestCase):
+def setUpModule():
+    print "setup"
+    uri = "mongodb://localhost:27018/"
+    mongodb_client = pymongo.MongoClient(uri)
+    mongodb_client.copy_database("articles_test", "articles_test_play")
+    mongodb_client.close()
 
-    """Test the downloadManager class"""
+def tearDownModule():
+    uri = "mongodb://localhost:27018/"
+    mongodb_client = pymongo.MongoClient(uri)
+    mongodb_client.drop_database("articles_test_play")
+    mongodb_client.drop_database("processing_test")
+    mongodb_client.close()
+    print "tearDown"
 
-    setUpRun = False
+class HarvestResultTestManager(unittest.TestCase):
+
+    """Test the results harvester"""
 
     def setUp(self):
         config = ConfigParser.RawConfigParser()
         config.read(BASE+'db_conn.cfg')
         reader_user = config.get('database','reader_user')
         reader_password = config.get('database','reader_password')
-        uri = "mongodb://%s:%s@deepdivesubmit.chtc.wisc.edu:27017/?authMechanism=MONGODB-CR" % (reader_user, reader_password)
+        uri = "mongodb://localhost:27018/"
         self.client = pymongo.MongoClient(uri)
 
-        articlesdb = self.client.articles_dev
+        articlesdb = self.client.articles_test_play
+
+        if "articles" not in articlesdb.collection_names():
+            print "Cannot run tests! No valid article_test collection found!"
+            sys.exit(1)
+
         self.articles = articlesdb.articles
 
         procdb = self.client.processing_test
@@ -36,7 +54,6 @@ class TestDownloadManager(unittest.TestCase):
         self.file_pattern = "*.text"
         self.tag = "elsevier_002"
         self.proctype = "nlp"
-
 
         self.resources = "005 (132795.000.000) 12/29 16:25:49 Job terminated.\n\
     (1) Normal termination (return value 0)\n\
@@ -53,9 +70,11 @@ class TestDownloadManager(unittest.TestCase):
        Disk (KB)            :   140726  1000000  25657681\n\
        Memory (MB)          :       11     1000      1000\n"\
 
-
-
     def tearDown(self):
+        # restore original test DB
+#        self.client.drop_database("articles_test")
+        self.client.close()
+
         pass
 
     def test_clean_path(self):
@@ -105,13 +124,7 @@ class TestDownloadManager(unittest.TestCase):
         }
         self.assertTrue(match, extractDictAFromB(match, expectedMatch))
 
-    def test_parse_time_2014(self):
-        line = "001 (132663.000.000) 12/29 15:16:50 Job executing on host: <128.105.244.247:35219>"
-        ret = parseTime(line)
-        exp = datetime.datetime(2014,12,29,15,16,50)
-        self.assertTrue(ret == exp)
-
-    def test_parse_time_2015(self):
+    def test_parse_time(self):
         line = "001 (132663.000.000) 01/15 15:16:50 Job executing on host: <128.105.244.247:35219>"
         ret = parseTime(line)
         exp = datetime.datetime(2015,01,15,15,16,50)
@@ -129,16 +142,16 @@ class TestDownloadManager(unittest.TestCase):
     def test_readLog(self):
         basedir = './tests'
         ret = readLog(basedir + '/' + self.jobid)
-        expRuntime = ( datetime.datetime(2014,12,29,15,23,01) - datetime.datetime(2014,12,29,15,13,52))
+        expRuntime = ( datetime.datetime(2015,12,29,15,23,01) - datetime.datetime(2015,12,29,15,13,52))
         usage = {
                 'diskUsage': 678215,
                 'memUsage': 220
                 }
         exp = {
                 'path': '%s/%s' % (basedir, self.jobid),
-                'subTime': datetime.datetime(2014,12,29,15,10,43),
-                'execTime': datetime.datetime(2014,12,29,15,13,52),
-                'termTime': datetime.datetime(2014,12,29,15,23,01),
+                'subTime': datetime.datetime(2015,12,29,15,10,43),
+                'execTime': datetime.datetime(2015,12,29,15,13,52),
+                'termTime': datetime.datetime(2015,12,29,15,23,01),
                 'runTime' : expRuntime.days * 86400 + expRuntime.seconds,
                 'usage' : usage,
                 }
@@ -171,6 +184,78 @@ class TestDownloadManager(unittest.TestCase):
                 "page-4.hocr.html", "page-5.hocr.html", "page-6.hocr.html"]
         base_files = [os.getcwd() + '/tests/job000001/' + i for i in base_files]
         self.assertTrue(base_files == files, msg="Returned list doesn't match expected! %s vs %s" % (str(base_files), str(files)))
+
+    def test_articleUpdate_failure(self):
+        # should update the matched article, adding an empty filename list, success: False, and harvested: True to the DB
+        jobpath = "./tests/job_failure_example/"
+        jobid = "job000009"
+        tag = "harvesting_postscript_test"
+        proctype = "ocr"
+        file_pattern = "page*.html"
+        filepath_map = pickle.load(open("./tests/job_failure_example/filepath_mapping.pickle"))
+        match_before = getMatch(jobid, self.articles, filepath_map)
+        success, temp = updateArticle(match_before, jobpath, tag, proctype, self.articles, filepath_map, file_pattern)
+        match_after = self.articles.find_one({"URL": match_before["URL"]})
+        self.assertTrue(match_after == match_before and success != 0)
+
+    def test_articleUpdate_success(self):
+        # def updateArticle(match, jobpath, tag, proctype, articlesColl, filepath_map, file_pattern, dryrun=False, update=False):
+        # should update the database
+        # verify that the match before and after are the same, aside from harvest updates
+        jobpath = os.getcwd()+"/tests/job_success_example/"
+        jobid = "job000002"
+        tag = "harvesting_postscript_test"
+        proctype = "ocr"
+        file_pattern = "page*.html"
+        filepath_map = pickle.load(open("./tests/job_success_example/filepath_mapping.pickle"))
+        match_before = getMatch(jobid, self.articles, filepath_map)
+        success, temp = updateArticle(match_before, jobpath, tag, proctype, self.articles, filepath_map, file_pattern)
+        match_after = self.articles.find_one({"URL": match_before["URL"]})
+        subset = all((k in match_after and match_after[k] == v) for k,v in match_before.iteritems())
+        expected = ['/home/iaross/harvesting_postscript/deepdive/tests/job_success_example/page-1.hocr.html']
+        new = (match_after["%s_processing" % proctype][tag]['filename'] == expected)
+        print "Success? : ", success
+        print "New stuff there? : ", new
+        print "Nothing else touched? : ", subset
+
+        self.assertTrue(subset and new and success==0)
+
+    def test_processingUpdate_success(self):
+        jobpath = os.getcwd()+"/tests/job_success_example/"
+        jobid = "job000002"
+        tag = "harvesting_postscript_test"
+        proctype = "ocr"
+        file_pattern = "page*.html"
+        filepath_map = pickle.load(open("./tests/job_success_example/filepath_mapping.pickle"))
+        report = readLog(jobpath)
+        match_before = getMatch(jobid, self.articles, filepath_map)
+        proc_before = self.processings.find({"tag": tag})
+        check = updateProcessing(self.processings, tag, match_before["pubname"], report, True)
+        proc_after = self.processings.find_one({"tag": tag})
+        added_one = (proc_after["pub_totals"][match_before['pubname']]["success"]==1)
+        added_cputime = (proc_after["pub_totals"][match_before['pubname']]["cpusuccess"]==43)
+        print proc_after
+
+        self.assertTrue(added_one and added_cputime)
+
+    def test_processingUpdate_failure(self):
+        overall_success = False
+        jobpath = os.getcwd()+"/tests/job_failure_example/"
+        jobid = "job000009"
+        tag = "harvesting_postscript_test"
+        proctype = "ocr"
+        file_pattern = "page*.html"
+        filepath_map = pickle.load(open("./tests/job_success_example/filepath_mapping.pickle"))
+        report = readLog(jobpath)
+        match_before = getMatch(jobid, self.articles, filepath_map)
+        proc_before = self.processings.find({"tag": tag})
+        check = updateProcessing(self.processings, tag, match_before["pubname"], report, overall_success)
+        proc_after = self.processings.find_one({"tag": tag})
+        added_one = (proc_after["pub_totals"][match_before['pubname']]["failure"]==1)
+        added_cputime = (proc_after["pub_totals"][match_before['pubname']]["cpufailure"]==17)
+        print proc_after
+
+        self.assertTrue(added_one and added_cputime)
 
     def test_ocr_nlp_compound_job(self):
         # should be able to parse OCR+NLP combo

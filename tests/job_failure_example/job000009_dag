@@ -1,0 +1,3 @@
+JOB job000009 process.cmd dir job000009
+SCRIPT POST job000009 /home/iaross/harvesting_postscript/ChtcRun/submit_1_26Mar_out//postjob.py harvesting_postscript
+RETRY job000009 10

@@ -1,0 +1,6 @@
+Thu Mar 26 08:29:25 2015 CURL result=<0> signal=<0> time=<0> url=<http://proxy.chtc.wisc.edu/SQUID/SLIBS2.tar.gz> 
+Thu Mar 26 08:29:25 2015 CURL result=<0> signal=<0> time=<0> url=<http://proxy.chtc.wisc.edu/SQUID//iaross/k2pdfopt> 
+Thu Mar 26 08:29:28 2015 CURL result=<0> signal=<0> time=<3> url=<http://proxy.chtc.wisc.edu/SQUID//iaross/ocr2.zip> 
+Thu Mar 26 08:29:30 2015 CURL result=<0> signal=<0> time=<2> url=<http://proxy.chtc.wisc.edu/SQUID//iaross/cuneiform.zip> 
+Thu Mar 26 08:30:04 2015 JOBTIME duration=<30> result=<0> signal=<0> type=<ocr_pdf.py input.pdf --tesseract --no-cuneiform> 
+Thu Mar 26 08:30:04 2015 RUNTIME duration=<39> type=<Other> 

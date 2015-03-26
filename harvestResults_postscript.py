@@ -50,10 +50,10 @@ BASE = "/home/iaross/DeepDive/deepdive/"
 
 def patternMatch(pattern, dir='./'):
     """
-    Returns list of files matching the desired input. Matches via regex.
 
-    :pattern: TODO
-    :returns: TODO
+    :pattern: A file pattern to match the desired output. Input to a glob, so use traditional unix wildcarding.
+    :dir: The directory to search.
+    :returns: list of matching files in the target directory
 
     """
     files = []
@@ -64,8 +64,8 @@ def cleanPath(path):
     """
     Cleans up raw path of pdf to just the name of the PDF (no extension or directories)
 
-    :path: TODO
-    :returns: TODO
+    :path: path to pdf
+    :returns: The PDF name with all directory/extensions stripped
 
     """
     filename = path.split("/")[-1]
@@ -90,21 +90,19 @@ def getMatch(jobid, collection, filepath_map):
 def parseTime(line):
     """
     Parse the time of submission/termination/execution from a line
-    expected input is of the type:
-        "001 (132663.000.000) 12/29 15:16:50 Job executing on host: <128.105.244.247:35219>"
+    Assumes: the log is from the current year
 
-    :line: TODO
-    :returns: TODO
+    :line: Line from the process.log file.
+        expected input is of the type:
+            "001 (132663.000.000) 12/29 15:16:50 Job executing on host: <128.105.244.247:35219>"
+    :returns: Date object
 
     """
+    now = datetime.now()
     line = line.split(" ")
     timeString = line[2] + " " + line[3]
     date_object = datetime.strptime(timeString, '%m/%d %H:%M:%S')
-    # FOR NOW: if datetime.month = 12, use 2014. Otherwise, 2015
-    if date_object.month == 12:
-        date_object = date_object.replace(year=2014)
-    else:
-        date_object = date_object.replace(year=2015)
+    date_object = date_object.replace(year=now.year) # ASSUMES the log is from the current year.
     return date_object
 
 def parseResources(chunk):
@@ -112,8 +110,8 @@ def parseResources(chunk):
     Takes a chunk of log text that includes the "Partitionable Resources" table
     and returns a parsed dict of {"diskUsage": xxx, "memUsage": yyy }
 
-    :chunk: TODO
-    :returns: TODO
+    :chunk: The text block containing the Partitional Resources table from standard HTCondor output.
+    :returns: Dictionary of the form usage = { memUsage: (memory usage in MB), diskUsage: (disk usage in KB) }
 
     """
     usage = {}
@@ -140,7 +138,14 @@ def readLog(jobpath):
 
     :jobid: id of the job within the submit/output directories
     :basedir: base directory for job output
-    :returns: TODO
+    :returns: If successful, returns dict of the form
+        jobReport = { subTime: (time of submission),
+                        execTime: (start time of latest execution),
+                        evictTime: (time of job eviction, if any),
+                        termTime: (time of job termination, if any),
+                        runTime: (time between execution start and termination/eviction time),
+                        usage: { usage dictionary from above},
+                    }
 
     """
     try:
@@ -182,24 +187,19 @@ def readLog(jobpath):
                     chunk+=line
         return jobReport
     except IOError:
-        if VERBOSE:
-            print "Couldn't find file at %s/process.log" % jobpath
+        print "Couldn't find file at %s/process.log" % jobpath
         return None
 
-def processJob(match, jobpath, tag, proctype, articlesColl, filepath_map, file_pattern, dryrun=False, update=False):
+def updateArticle(match, jobpath, tag, proctype, articlesColl, filepath_map, file_pattern, dryrun=False, update=False):
     """
-    Take an article matched in the DB, its associated job path, and update the relevant article collections with files found.
+    Take an article matched in the DB, its associated job path, and update the relevant article collections with files found + harvested
     """
-    # we have output, have we processed this article using this proctype+tag before?
-
     files = patternMatch(file_pattern, jobpath)
     if files == []: # no matching output. May be overall fail, may have just not run this proctype
         return 1,False
 
     try:  # if this article + tag have already been harvested, then skip
         if match["%s_processing" % proctype][tag]["harvested"]:
-            if DEBUG:
-                print "The information for this job has already been added to the DB!"
             if not update: # if UPDATE flag isn't used, move to the next job
                 return 2,False
     except KeyError:
@@ -214,20 +214,34 @@ def processJob(match, jobpath, tag, proctype, articlesColl, filepath_map, file_p
     temp["success"] = True # we found files, so it's a success!
     match["%s_processing" % proctype][tag] = temp
 
-    # db updates
-    # this will re-add the job reports if they're already in the db, since we're just pushing to a list
-    # can probably make an index on "path" and check against it.
     if dryrun:
-        ppr = pprint.PrettyPrinter(indent=4)
-        ppr.pprint(tempReport)
-
-        print "And this would be the new article document: "
+        print "This would be the new article document: "
         ppr.pprint(match)
     else:
         articlesColl.update( { "_id" : match["_id"] }, {"$set": match}, upsert = False )
 
-    # todo: clean up all other stuff in the output directories?
     return 0, temp["success"]
+
+def updateProcessing(collection, tag, pubname, report, success):
+    """
+    Update the process DB with this job's information. Add to this publication's success/failure tally, appending its runtime.
+    NOTE: This will run for each attempt at running the condor job. So if a job fails 10 times, 10 entries will appear in the processing database.
+
+    :collection: MongoDB collection to update
+    :tag: Processing tag
+    :pubname: Name of the publication to update
+    :report: The processing report obtained from readLog function
+
+    """
+    if success:
+        collection.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % pubname : 1 } }, upsert=True )
+        collection.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % pubname : report["runTime"]} }, upsert = True )
+    else:
+        collection.update({ "tag": tag },
+                {'$inc': {"pub_totals.%s.failure" % pubname : 1 } }, upsert = True)
+        collection.update({ "tag": tag },
+                {'$inc': {"pub_totals.%s.cpufailure" % pubname : report["runTime"]} } , upsert = True)
+    return 0
 
 def exit(success):
     """
@@ -275,11 +289,11 @@ if __name__ == '__main__':
     try:
         filepath_map = pickle.load(open("../filepath_mapping.pickle"))
     except IOError:
-        print "No filepath mapping found! Cannot determine what article this job belongs to! Exiting!"
+        with open("post.log","w") as fout:
+            fout.write("No filepath mapping found! Cannot determine what article this job belongs to! Exiting!")
         exit(False)
     jobpath = os.getcwd()
 
-    # ----- match article here
     # match against the articles collection in the DB
     if not jobpath.endswith("/"): #ensure we have a trailing /
         jobpath = jobpath + "/"
@@ -288,9 +302,9 @@ if __name__ == '__main__':
     match = getMatch(jobid, articles, filepath_map)
 
     if match is None:
-        if VERBOSE:
-            print "No match for the article found! Job id: %s\nfilepath_map: %s"% \
-                ( jobid, filepath_map[jobid] )
+        with open("post.log","w") as fout:
+            fout.write("No match for the article found! Job id: %s\nfilepath_map: %s"% \
+                ( jobid, filepath_map[jobid] ) )
         exit(False)
 
     check = None
@@ -302,9 +316,8 @@ if __name__ == '__main__':
         fout.write('TAG: %s\n' % tag)
         for proctype in job_config.sections():
             pattern = job_config.get(proctype, 'pattern')
-            processings = procdb["%s_processing" % proctype]
 
-            check,jobSuccess = processJob(match, jobpath, args.tag, proctype, articles, filepath_map, pattern, args.dryrun, args.update)
+            check,jobSuccess = updateArticle(match, jobpath, args.tag, proctype, articles, filepath_map, pattern, args.dryrun, args.update)
             fout.write(proctype+"\n")
             fout.write('\t%s -- %s\n' % (check, jobSuccess))
             if jobSuccess:
@@ -312,26 +325,13 @@ if __name__ == '__main__':
 
     # read log file
     tempReport = readLog(jobpath)
-    if tempReport is None:
-        exit(False)
-    try:
-        tempReport["runTime"]
-    except KeyError: # no runTime reported -- probably still running
-        exit(False)
+    if tempReport is None or "runTime" not in tempReport:
+        exit(False) # couldn't read file log
 
-    # need to grab the pubname from somewhere.
-    tempReport["pubname"] = match["pubname"]
+    pubname = match["pubname"]
 
+    updateProcessing(processingsColl, tag, pubname, tempReport, overall_success)
     if overall_success:
-        processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.success" % tempReport["pubname"] : 1 } }, upsert=True )
-        processingsColl.update({ "tag": tag }, {'$inc': {"pub_totals.%s.cpusuccess" % tempReport["pubname"]: tempReport["runTime"]} }, upsert = True )
+        exit(True)
     else:
-        processingsColl.update({ "tag": tag },
-                {'$inc': {"pub_totals.%s.failure" % tempReport["pubname"] : 1 } }, upsert = True)
-        processingsColl.update({ "tag": tag },
-                {'$inc': {"pub_totals.%s.cpufailure" % tempReport["pubname"]: tempReport["runTime"]} } , upsert = True)
-
-        if overall_success:
-            exit(True)
-        else:
-            exit(False)
+        exit(False)

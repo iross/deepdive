@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "./ocr_pdf.py", line 203, in <module>
+    main(args)
+  File "./ocr_pdf.py", line 189, in main
+    o.do()
+  File "./ocr_pdf.py", line 168, in do
+    print pdf_to_png(output_file, tmp_folder='ocr_tmp', func=self.call)
+  File "./ocr_pdf.py", line 62, in pdf_to_png
+    return func(cmd)
+  File "./ocr_pdf.py", line 156, in call
+    return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
+  File "./ocr_pdf.py", line 20, in call
+    return subprocess.check_call(cmd, stdout=stdout, stderr=stderr, shell=True)
+  File "/usr/lib64/python2.6/subprocess.py", line 505, in check_call
+    raise CalledProcessError(retcode, cmd)
+subprocess.CalledProcessError: Command './codes/convert/cde-exec 'gs' -dBATCH -dNOPAUSE -sDEVICE=png16m -dGraphicsAlphaBits=4 -dTextAlphaBits=4 -r600 -sOutputFile='ocr_tmp/page-%d.png' 'input.pdf'' returned non-zero exit status 1

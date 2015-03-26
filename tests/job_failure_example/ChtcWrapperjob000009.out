@@ -1,0 +1,180 @@
+inner wrapper starting to run. Sandox looks like:
+/var/lib/condor/execute/slot1/dir_18423
+CURLTIME_18427
+ChtcWrapperjob000009.out
+URLS
+_condor_stderr
+_condor_stdout
+argparse.py
+chtcinnerwrapper
+condor_exec.exe
+input.pdf
+ocr_pdf.py
+tmp
+My OS is:sl6
+--version should be used for Matlab, R and Python
+Running here: c028.chtc.wisc.edu
+Fetching SLIBS2.tar.gz
+SS/
+SS/libXfixes.so.3
+SS/libgfortran.so.3
+SS/libXdamage.so.1
+SS/libXRes.so.1.0.0
+SS/libXpm.so.4.11.0
+SS/libXmu.so.6
+SS/libXvMCW.so.1.0.0
+SS/libXt.so.6
+SS/libXdmcp.so.6.0.0
+SS/libXfixes.so
+SS/libXext.so
+SS/libX11.so.6.3.0
+SS/libICE.so
+SS/libXxf86dga.so.1.0.0
+SS/libXt.so
+SS/libXdamage.so
+SS/libXxf86vm.so
+SS/libXtst.so.6.1.0
+SS/libXft.so.2
+SS/libXxf86misc.so.1.1.0
+SS/libuuid.so.1
+SS/libdl.so.2
+SS/libI810XvMC.so.1.0.0
+SS/libXrandr.so.2.2.0
+SS/libXrandr.so.2
+SS/libgfortran.so.1
+SS/libXcomposite.so.1.0.0
+SS/libXfixes.so.3.1.0
+SS/libSM.so.6.0.0
+SS/libXinerama.so.1
+SS/libXfont.so.1
+SS/libXaw.so.7
+SS/libSM.so.6
+SS/libXmu.so.6.2.0
+SS/libxkbfile.so.1
+SS/libXmuu.so.1
+SS/libXvMC.so.1
+SS/libXdamage.so.1.1.0
+SS/libXxf86misc.so.1
+SS/libXmuu.so
+SS/libXinerama.so.1.0.0
+SS/libxcb.so.1
+SS/libICE.so.6.3.0
+SS/libXext.so.6
+SS/libXtst.so.6
+SS/libGL.so
+SS/libXau.so.6
+SS/libXv.so.1
+SS/libXrender.so
+SS/libXmuu.so.1.0.0
+SS/libXaw7.so.7.0.0
+SS/libXext.so.6.4.0
+SS/libXaw7.so.7
+SS/libXt.so.6.0.0
+SS/libXft.so
+SS/libXxf86dga.so.1
+SS/libGLU.so.1.3.1
+SS/libICE.so.6
+SS/libXcursor.so.1.0.2
+SS/libXi.so
+SS/libI810XvMC.so.1
+SS/libX11-xcb.so.1
+SS/libXvMC.so.1.0.0
+SS/libXrender.so.1.3.0
+SS/libXdmcp.so.6
+SS/libXcursor.so.1
+SS/libGL.so.1.2.0
+SS/libXfont.so.1.4.1
+SS/libX11-xcb.so
+SS/libXv.so.1.0.0
+SS/libXau.so.6.0.0
+SS/libXi.so.6.1.0
+SS/libXpm.so.4
+SS/libgfortran.so.1.0.0
+SS/libSM.so
+SS/libXft.so.2.3.1
+SS/libX11-xcb.so.1.0.0
+SS/libXxf86vm.so.1
+SS/libXRes.so.1
+SS/libXau.so
+SS/libX11.so
+SS/libXrender.so.1
+SS/ld-linux-x86-64.so.2
+SS/libXxf86vm.so.1.0.0
+SS/libGLU.so.1
+SS/libXvMCW.so.1
+SS/libXcomposite.so.1
+SS/libgfortran.so.3.0.0
+SS/libXi.so.6
+SS/libxkbfile.so.1.0.2
+SS/libGLU.so
+SS/libXmu.so
+SS/libGL.so.1
+SS/libX11.so.6
+LD_LIBRARY_PATH:/var/lib/condor/execute/slot1/dir_18423/SS:/var/lib/condor/execute/slot1/dir_18423 Sandbox:/var/lib/condor/execute/slot1/dir_18423
+Running here: c028.chtc.wisc.edu
+*********** SANDBOX SPACE size: Before your job runs. Shows all files before the job runs *************
+249M	.
+total 247968
+-rw-r--r-- 1 slot7 slot7       474 Mar 26 08:40 AuditLog.job000009
+-rw-r--r-- 1 slot7 slot7       118 Mar 26 08:40 CURLTIME_18427
+-rw-r--r-- 1 slot7 slot7      2346 Mar 26 08:40 ChtcWrapperjob000009.out
+-rw-r--r-- 1 slot7 slot7   2677087 Mar 26 08:40 SLIBS2.tar.gz
+drwxr-xr-x 2 slot7 slot7      4096 Mar 19 10:10 SS
+-rw-rw-r-- 1 slot7 slot7        56 Mar 26 08:40 URLS
+-rw-r--r-- 1 slot7 slot7       317 Mar 26 08:40 _condor_stderr
+-rw-r--r-- 1 slot7 slot7       919 Mar 26 08:40 _condor_stdout
+-rw-rw-r-- 1 slot7 slot7     88400 Mar 26 08:40 argparse.py
+-rwxr-xr-x 1 slot7 slot7     45862 Mar 26 08:40 chtcinnerwrapper
+-rwxr-xr-x 1 slot7 slot7      5393 Mar 26 08:40 condor_exec.exe
+-rw-r--r-- 1 slot7 slot7 127021852 Mar 26 08:40 cuneiform.zip
+-rw-rw-r-- 1 slot7 slot7    258567 Mar 26 08:40 input.pdf
+-rw-r--r-- 1 slot7 slot7   8409032 Mar 26 08:40 k2pdfopt
+-rw-r--r-- 1 slot7 slot7 115358272 Mar 26 08:40 ocr2.zip
+-rwxrwxr-x 1 slot7 slot7      7829 Mar 26 08:40 ocr_pdf.py
+drwx------ 2 slot7 slot7         6 Mar 26 08:40 tmp
+/bin/sleep
+about to execute <<ocr_pdf.py input.pdf --tesseract --no-cuneiform>>
+*********** YOUR JOB OUTPUT BELOW *************
+Traceback (most recent call last):
+  File "./ocr_pdf.py", line 203, in <module>
+    main(args)
+  File "./ocr_pdf.py", line 189, in main
+    o.do()
+  File "./ocr_pdf.py", line 168, in do
+    print pdf_to_png(output_file, tmp_folder='ocr_tmp', func=self.call)
+  File "./ocr_pdf.py", line 62, in pdf_to_png
+    return func(cmd)
+  File "./ocr_pdf.py", line 156, in call
+    return call(cmd, check=check, stdout=self.stdout, stderr=self.stderr)
+  File "./ocr_pdf.py", line 20, in call
+    return subprocess.check_call(cmd, stdout=stdout, stderr=stderr, shell=True)
+  File "/usr/lib64/python2.6/subprocess.py", line 505, in check_call
+    raise CalledProcessError(retcode, cmd)
+subprocess.CalledProcessError: Command './codes/convert/cde-exec 'gs' -dBATCH -dNOPAUSE -sDEVICE=png16m -dGraphicsAlphaBits=4 -dTextAlphaBits=4 -r600 -sOutputFile='ocr_tmp/page-%d.png' 'input.pdf'' returned non-zero exit status 1
+*********** YOUR JOB OUTPUT ABOVE *************
+Ececution of <ocr_pdf.py input.pdf --tesseract --no-cuneiform> failed
+*********** SANDBOX SPACE size: After your job runs. Shows all files after the job ran *************
+857M	.
+total 243M
+-rw-r--r-- 1 slot7 slot7  599 Mar 26 08:40 AuditLog.job000009
+-rw-r--r-- 1 slot7 slot7  118 Mar 26 08:40 CURLTIME_18427
+-rw-r--r-- 1 slot7 slot7 4.6K Mar 26 08:40 ChtcWrapperjob000009.out
+-rw-r--r-- 1 slot7 slot7 2.6M Mar 26 08:40 SLIBS2.tar.gz
+drwxr-xr-x 2 slot7 slot7 4.0K Mar 19 10:10 SS
+-rw-rw-r-- 1 slot7 slot7   56 Mar 26 08:40 URLS
+-rw-r--r-- 1 slot7 slot7  317 Mar 26 08:40 _condor_stderr
+-rw-r--r-- 1 slot7 slot7  919 Mar 26 08:40 _condor_stdout
+-rw-rw-r-- 1 slot7 slot7  87K Mar 26 08:40 argparse.py
+-rw-r--r-- 1 slot7 slot7  67K Mar 26 08:40 argparse.pyc
+drwxrwxrwx 3 slot7 slot7  139 Sep  7  2013 cde-package
+-rwxr-xr-x 1 slot7 slot7  45K Mar 26 08:40 chtcinnerwrapper
+drwxr-xr-x 4 slot7 slot7   59 Apr  6  2013 codes
+-rwxr-xr-x 1 slot7 slot7 5.3K Mar 26 08:40 condor_exec.exe
+-rw-r--r-- 1 slot7 slot7 122M Mar 26 08:40 cuneiform.zip
+-rw-rw-r-- 1 slot7 slot7 253K Mar 26 08:40 input.pdf
+-rw-r--r-- 1 slot7 slot7 8.1M Mar 26 08:40 k2pdfopt
+-rw-r--r-- 1 slot7 slot7 111M Mar 26 08:40 ocr2.zip
+-rwxr-xr-x 1 slot7 slot7 7.7K Mar 26 08:40 ocr_pdf.py
+-rw-r--r-- 1 slot7 slot7 139K Mar 26 08:40 out.txt
+drwx------ 2 slot7 slot7    6 Mar 26 08:40 tmp
+Non-zero job status so exit(8)....

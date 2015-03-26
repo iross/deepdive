@@ -1,0 +1,14 @@
+chtcruntop = /home/iaross/harvesting_postscript/ChtcRun
+cmdtorun = ocr_pdf.py
+file = job000009
+jobfolder = /home/iaross/harvesting_postscript/ChtcRun/submit_1_26Mar/job000009/
+jobsubdag = /home/iaross/harvesting_postscript/ChtcRun/submit_1_26Mar_out/job000009/job000009_dag
+jobtemplateloc = /home/iaross/harvesting_postscript/ChtcRun
+passtochtcwrapper = 
+postjobloc = /home/iaross/harvesting_postscript/ChtcRun/submit_1_26Mar_out/
+programargs = input.pdf --tesseract --no-cuneiform 
+runfolder = /home/iaross/harvesting_postscript/ChtcRun/submit_1_26Mar_out/job000009/
+sharedfolder = /home/iaross/harvesting_postscript/ChtcRun/submit_1_26Mar/shared/
+submitfileloc = /home/iaross/harvesting_postscript/ChtcRun/submit_1_26Mar_out/job000009
+tag = harvesting_postscript
+type = Other

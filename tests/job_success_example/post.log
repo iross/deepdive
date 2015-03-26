@@ -1,0 +1,9 @@
+TAG: harvesting_postscript
+nlp
+	1 -- False
+cuneiform
+	1 -- False
+ocr
+	0 -- True
+fonttype
+	1 -- False
